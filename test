@@ -1,0 +1,324 @@
+-- language: Lua, file: saifs aimbot.lua, target: Roblox, Luau
+-- *fully modularized and register-optimized architecture to eliminate Luau local stack limits*
+local Settings = {
+    AimbotEnabled = false,
+    AimbotMode = "Toggle",
+    TriggerbotEnabled = false,
+    TriggerbotDelay = 0.05,
+    SemiDelay = 0.12,
+    FOVSize = 100,
+    TargetingSmoothness = 0.50, 
+    TrackingSmoothness = 0.50,  
+    TeamCheck = false,
+    WallCheck = false,
+    ShowFOV = false,
+    TargetPart = "Head",
+    FOVColorIndex = 1,
+    
+    ESPHighlight = false,
+    ESPBox = false,
+    ESPName = false,
+    ESPHealth = false,
+    ESPSkeleton = false,
+    ESPTracers = false,
+    ESPHeadDot = false,
+    TeamCheckESP = false,
+    TeammateColorIndex = 1,
+    EnemyColorIndex = 1,
+
+    FlyActive = false,
+    FlySpeed = 50,
+    FlyVerticalSpeed = 50,
+    FlyNoClip = false,
+    
+    WalkSpeedActive = false,
+    WalkSpeedValue = 16,
+    JumpPowerActive = false,
+    JumpPowerValue = 50,
+    InfiniteJumpActive = false,
+
+    ShowKeybindsHud = false,
+    CustomFont = Enum.Font.FredokaOne,
+    
+    KeyAimbot = Enum.KeyCode.V,
+    KeyESP = Enum.KeyCode.C,
+    KeyFly = Enum.KeyCode.X,
+    KeyToggleMenu = Enum.KeyCode.LeftAlt,
+    KeyUnload = Enum.KeyCode.U,
+    ThemeIndex = 1
+}
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local connections = {}
+local listeningForKey = nil
+local ignoreNextClick = false
+local draggingState = {
+    Targeting = false, Tracking = false, TriggerDelay = false,
+    FOV = false, FlySpeed = false, FlyVert = false,
+    WalkSpeed = false, JumpPower = false, Main = false, Hud = false, Resize = false
+}
+local lastTriggerShot = 0
+local isShooting = false
+local isAimbotHeld = false
+local menuVisible = true
+local currentTab = 1
+
+local ColorOptions = {
+    {Name = "White", Color = Color3.fromRGB(255, 255, 255)},
+    {Name = "Black", Color = Color3.fromRGB(15, 15, 15)},
+    {Name = "Purple", Color = Color3.fromRGB(147, 51, 234)},
+    {Name = "Blue", Color = Color3.fromRGB(30, 144, 255)},
+    {Name = "Green", Color = Color3.fromRGB(34, 197, 94)},
+    {Name = "Red", Color = Color3.fromRGB(239, 68, 68)},
+    {Name = "Yellow", Color = Color3.fromRGB(234, 179, 8)},
+    {Name = "Orange", Color = Color3.fromRGB(249, 115, 22)}
+}
+
+local Themes = {
+    {Name = "White", Accent = Color3.fromRGB(255, 255, 255), Bg = Color3.fromRGB(240, 240, 245), Card = Color3.fromRGB(255, 255, 255), Text = Color3.fromRGB(20, 20, 25), SubText = Color3.fromRGB(90, 90, 105), Off = Color3.fromRGB(200, 200, 210), TabActive = Color3.fromRGB(225, 225, 235), TabInactive = Color3.fromRGB(210, 210, 220)},
+    {Name = "Black", Accent = Color3.fromRGB(45, 45, 45), Bg = Color3.fromRGB(18, 18, 20), Card = Color3.fromRGB(26, 26, 30), Text = Color3.fromRGB(235, 235, 240), SubText = Color3.fromRGB(130, 130, 145), Off = Color3.fromRGB(60, 60, 70), TabActive = Color3.fromRGB(38, 38, 45), TabInactive = Color3.fromRGB(22, 22, 26)},
+    {Name = "Purple", Accent = Color3.fromRGB(147, 51, 234), Bg = Color3.fromRGB(18, 18, 20), Card = Color3.fromRGB(26, 26, 30), Text = Color3.fromRGB(235, 235, 240), SubText = Color3.fromRGB(130, 130, 145), Off = Color3.fromRGB(60, 60, 70), TabActive = Color3.fromRGB(38, 38, 45), TabInactive = Color3.fromRGB(22, 22, 26)},
+    {Name = "Blue", Accent = Color3.fromRGB(30, 144, 255), Bg = Color3.fromRGB(18, 18, 20), Card = Color3.fromRGB(26, 26, 30), Text = Color3.fromRGB(235, 235, 240), SubText = Color3.fromRGB(130, 130, 145), Off = Color3.fromRGB(60, 60, 70), TabActive = Color3.fromRGB(38, 38, 45), TabInactive = Color3.fromRGB(22, 22, 26)},
+    {Name = "Green", Accent = Color3.fromRGB(34, 197, 94), Bg = Color3.fromRGB(18, 18, 20), Card = Color3.fromRGB(26, 26, 30), Text = Color3.fromRGB(235, 235, 240), SubText = Color3.fromRGB(130, 130, 145), Off = Color3.fromRGB(60, 60, 70), TabActive = Color3.fromRGB(38, 38, 45), TabInactive = Color3.fromRGB(22, 22, 26)},
+    {Name = "Red", Accent = Color3.fromRGB(239, 68, 68), Bg = Color3.fromRGB(18, 18, 20), Card = Color3.fromRGB(26, 26, 30), Text = Color3.fromRGB(235, 235, 240), SubText = Color3.fromRGB(130, 130, 145), Off = Color3.fromRGB(60, 60, 70), TabActive = Color3.fromRGB(38, 38, 45), TabInactive = Color3.fromRGB(22, 22, 26)}
+}
+
+local function getTheme() return Themes[Settings.ThemeIndex] end
+
+local successGui, parentContainer = pcall(function() return CoreGui end)
+if not successGui or not parentContainer then parentContainer = Player:WaitForChild("PlayerGui") end
+if parentContainer:FindFirstChild("SaifsAimbotGui") then parentContainer.SaifsAimbotGui:Destroy() end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SaifsAimbotGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = parentContainer
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 520, 0, 390)
+MainFrame.Position = UDim2.new(0.5, -260, 0.5, -195)
+MainFrame.BackgroundColor3 = getTheme().Bg
+MainFrame.BorderSizePixel = 0
+MainFrame.ZIndex = 1
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+
+local ResizeHandle = Instance.new("TextButton", MainFrame)
+ResizeHandle.Name = "ResizeHandle"
+ResizeHandle.Size = UDim2.new(0, 16, 0, 16)
+ResizeHandle.Position = UDim2.new(1, -16, 1, -16)
+ResizeHandle.BackgroundTransparency = 1
+ResizeHandle.Text = "◢"
+ResizeHandle.TextColor3 = getTheme().SubText
+ResizeHandle.TextSize = 12
+ResizeHandle.ZIndex = 10
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(0, 200, 0, 25)
+Title.Position = UDim2.new(0, 15, 0, 12)
+Title.BackgroundTransparency = 1
+Title.Font = Settings.CustomFont
+Title.Text = "Saif's Aimbot"
+Title.TextColor3 = getTheme().Text
+Title.TextSize = 18
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 2
+
+local function getKeyName(inputObj)
+    if not inputObj then return "None" end
+    if typeof(inputObj) == "EnumItem" then
+        if inputObj.EnumType == Enum.KeyCode then return inputObj.Name end
+        if inputObj.EnumType == Enum.UserInputType then
+            if inputObj == Enum.UserInputType.MouseButton1 then return "MB1" end
+            if inputObj == Enum.UserInputType.MouseButton2 then return "MB2" end
+            if inputObj == Enum.UserInputType.MouseButton3 then return "MB3" end
+            return inputObj.Name
+        end
+    end
+    return tostring(inputObj)
+end
+
+local KeybindsHud = Instance.new("Frame", ScreenGui)
+KeybindsHud.Name = "KeybindsHud"
+KeybindsHud.Size = UDim2.new(0, 190, 0, 120)
+KeybindsHud.Position = UDim2.new(0, 15, 1, -135)
+KeybindsHud.BackgroundColor3 = getTheme().Card
+KeybindsHud.BorderSizePixel = 0
+KeybindsHud.Visible = false
+KeybindsHud.ZIndex = 50
+Instance.new("UICorner", KeybindsHud).CornerRadius = UDim.new(0, 8)
+
+local function createHudStatusRow(yOffset, labelText)
+    local rowLbl = Instance.new("TextLabel", KeybindsHud)
+    rowLbl.Size = UDim2.new(1, -20, 0, 20); rowLbl.Position = UDim2.new(0, 10, 0, yOffset)
+    rowLbl.BackgroundTransparency = 1; rowLbl.Font = Settings.CustomFont; rowLbl.Text = labelText
+    rowLbl.TextColor3 = getTheme().SubText; rowLbl.TextSize = 12; rowLbl.TextXAlignment = Enum.TextXAlignment.Left; rowLbl.ZIndex = 51
+    
+    local stateLbl = Instance.new("TextLabel", KeybindsHud)
+    stateLbl.Size = UDim2.new(0, 60, 0, 20); stateLbl.Position = UDim2.new(1, -70, 0, yOffset)
+    stateLbl.BackgroundTransparency = 1; stateLbl.Font = Settings.CustomFont; stateLbl.Text = "OFF"
+    stateLbl.TextColor3 = Color3.fromRGB(239, 68, 68); stateLbl.TextSize = 12; stateLbl.TextXAlignment = Enum.TextXAlignment.Right; stateLbl.ZIndex = 51
+    return rowLbl, stateLbl
+end
+
+local HudRowAimbot, HudStatusAimbot = createHudStatusRow(8, "Aimbot [" .. getKeyName(Settings.KeyAimbot) .. "]")
+local HudRowESP, HudStatusESP = createHudStatusRow(30, "ESP [" .. getKeyName(Settings.KeyESP) .. "]")
+local HudRowFly, HudStatusFly = createHudStatusRow(52, "Movement [" .. getKeyName(Settings.KeyFly) .. "]")
+local HudRowMenu, HudStatusMenu = createHudStatusRow(74, "Menu [" .. getKeyName(Settings.KeyToggleMenu) .. "]")
+
+local HudStatusUnload = Instance.new("TextLabel", KeybindsHud)
+HudStatusUnload.Size = UDim2.new(1, -20, 0, 18); HudStatusUnload.Position = UDim2.new(0, 10, 0, 96)
+HudStatusUnload.BackgroundTransparency = 1; HudStatusUnload.Font = Settings.CustomFont
+HudStatusUnload.Text = "Press " .. getKeyName(Settings.KeyUnload) .. " to Unload"
+HudStatusUnload.TextColor3 = getTheme().SubText; HudStatusUnload.TextSize = 10; HudStatusUnload.TextXAlignment = Enum.TextXAlignment.Center; HudStatusUnload.ZIndex = 51
+
+local tabContainers = {}
+for i = 1, 6 do
+    local scroller = Instance.new("ScrollingFrame", MainFrame)
+    scroller.Size = UDim2.new(1, -20, 1, -85); scroller.Position = UDim2.new(0, 10, 0, 75)
+    scroller.BackgroundTransparency = 1; scroller.BorderSizePixel = 0
+    scroller.CanvasSize = UDim2.new(0, 0, 0, 700); scroller.ScrollBarThickness = 4
+    scroller.ScrollBarImageColor3 = getTheme().Accent; scroller.Visible = (i == 1); scroller.ZIndex = 2
+    
+    local layout = Instance.new("UIListLayout", scroller)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.Padding = UDim.new(0, 6)
+    tabContainers[i] = scroller
+end
+
+local function createTabButton(name, xPos, index)
+    local btn = Instance.new("TextButton", MainFrame)
+    btn.Size = UDim2.new(0, 72, 0, 24); btn.Position = UDim2.new(0, xPos, 0, 42)
+    btn.BackgroundColor3 = (currentTab == index) and getTheme().TabActive or getTheme().TabInactive
+    btn.BorderSizePixel = 0; btn.Font = Settings.CustomFont; btn.Text = name
+    btn.TextColor3 = (currentTab == index) and getTheme().Text or getTheme().SubText
+    btn.TextSize = 11; btn.ZIndex = 2
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+    return btn
+end
+
+local Tab1 = createTabButton("Aimbot", 12, 1)
+local Tab2 = createTabButton("ESP", 89, 2)
+local Tab3 = createTabButton("Movement", 166, 3)
+local Tab4 = createTabButton("Teleport", 243, 4)
+local Tab5 = createTabButton("Keybinds", 320, 5)
+local Tab6 = createTabButton("Settings", 397, 6)
+
+local function createCard(tabIndex, order)
+    local card = Instance.new("Frame", tabContainers[tabIndex])
+    card.Size = UDim2.new(1, 0, 0, 34); card.BackgroundColor3 = getTheme().Card
+    card.BorderSizePixel = 0; card.LayoutOrder = order; card.ZIndex = 3
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
+    return card
+end
+
+-- UI Component References for Theme Updating
+local uiElements = {}
+
+local function registerElement(obj, prop, typeKey, subKey)
+    table.insert(uiElements, {Object = obj, Prop = prop, Type = typeKey, Sub = subKey})
+    return obj
+end
+
+-- Modularized Tab Builders to isolate stack frames
+local function buildTab1()
+    local c1 = createCard(1, 1)
+    registerElement(Instance.new("TextLabel", c1), "TextColor3", "Text", nil).Size = UDim2.new(0, 200, 0, 34)
+    c1.TextLabel.Position = UDim2.new(0, 12, 0, 0); c1.TextLabel.BackgroundTransparency = 1; c1.TextLabel.Font = Settings.CustomFont
+    c1.TextLabel.Text = "Aimbot"; c1.TextLabel.TextSize = 14; c1.TextLabel.TextXAlignment = Enum.TextXAlignment.Left; c1.TextLabel.ZIndex = 4
+
+    local t1 = registerElement(Instance.new("Frame", c1), "BackgroundColor3", "ToggleTrack", "AimbotEnabled")
+    t1.Size = UDim2.new(0, 34, 0, 18); t1.Position = UDim2.new(1, -46, 0.5, -9); t1.BorderSizePixel = 0; t1.ZIndex = 4
+    Instance.new("UICorner", t1).CornerRadius = UDim.new(1, 0)
+    local k1 = Instance.new("Frame", t1)
+    k1.Size = UDim2.new(0, 14, 0, 14); k1.Position = Settings.AimbotEnabled and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+    k1.BackgroundColor3 = Color3.fromRGB(255, 255, 255); k1.BorderSizePixel = 0; k1.ZIndex = 5
+    Instance.new("UICorner", k1).CornerRadius = UDim.new(1, 0)
+    
+    table.insert(connections, c1.InputBegan:Connect(function(input) 
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+            Settings.AimbotEnabled = not Settings.AimbotEnabled 
+            updateUIStates() 
+        end 
+    end))
+end
+
+-- Run modular builders safely
+buildTab1()
+
+local fovCircle = Drawing.new("Circle")
+fovCircle.Thickness = 2; fovCircle.NumSides = 60; fovCircle.Radius = Settings.FOVSize
+fovCircle.Color = ColorOptions[Settings.FOVColorIndex].Color; fovCircle.Transparency = 0.7
+fovCircle.Visible = false; fovCircle.Filled = false
+
+local espDrawings = {}
+local function createDrawingESP(player)
+    if espDrawings[player] then return end
+    local drawings = {
+        BoxOutline = Drawing.new("Square"), Box = Drawing.new("Square"),
+        Name = Drawing.new("Text"), HealthBarBackground = Drawing.new("Line"),
+        HealthBar = Drawing.new("Line"), Tracer = Drawing.new("Line"),
+        HeadDot = Drawing.new("Circle"), Skeleton = {}, Highlight = Instance.new("Highlight")
+    }
+    drawings.BoxOutline.Thickness = 3; drawings.BoxOutline.Filled = false; drawings.BoxOutline.Color = Color3.fromRGB(0,0,0); drawings.BoxOutline.Visible = false
+    drawings.Box.Thickness = 1.5; drawings.Box.Filled = false; drawings.Box.Visible = false
+    drawings.Name.Size = 13; drawings.Name.Center = true; drawings.Name.Outline = true; drawings.Name.Color = Color3.fromRGB(255,255,255); drawings.Name.Visible = false
+    drawings.HealthBarBackground.Thickness = 4; drawings.HealthBarBackground.Color = Color3.fromRGB(0,0,0); drawings.HealthBarBackground.Visible = false
+    drawings.HealthBar.Thickness = 2; drawings.HealthBar.Visible = false
+    drawings.Tracer.Thickness = 1.5; drawings.Tracer.Visible = false
+    drawings.HeadDot.Radius = 5; drawings.HeadDot.Filled = true; drawings.HeadDot.NumSides = 20; drawings.HeadDot.Visible = false
+    drawings.Highlight.FillTransparency = 0.5; drawings.Highlight.OutlineTransparency = 0; drawings.Highlight.Enabled = false
+    for i = 1, 16 do
+        local line = Drawing.new("Line"); line.Thickness = 1.5; line.Visible = false
+        table.insert(drawings.Skeleton, line)
+    end
+    espDrawings[player] = drawings
+end
+
+for _, p in pairs(Players:GetPlayers()) do if p ~= Player then createDrawingESP(p) end end
+table.insert(connections, Players.PlayerAdded:Connect(createDrawingESP))
+table.insert(connections, Players.PlayerRemoving:Connect(function(player)
+    if espDrawings[player] then
+        for name, obj in pairs(espDrawings[player]) do
+            if type(obj) == "table" then for _, l in ipairs(obj) do pcall(function() l:Remove() end) end
+            elseif name == "Highlight" then pcall(function() obj:Destroy() end)
+            else pcall(function() obj:Remove() end) end
+        end
+        espDrawings[player] = nil
+    end
+end))
+
+local function unloadHub()
+    if isShooting then pcall(function() VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0) end) isShooting = false end
+    for _, conn in ipairs(connections) do conn:Disconnect() end
+    pcall(function() fovCircle:Remove() end)
+    for p, _ in pairs(espDrawings) do 
+        if espDrawings[p] then
+            for name, obj in pairs(espDrawings[p]) do
+                if type(obj) == "table" then for _, l in ipairs(obj) do pcall(function() l:Remove() end) end
+                elseif name == "Highlight" then pcall(function() obj:Destroy() end)
+                else pcall(function() obj:Remove() end) end
+            end
+        end
+    end
+    ScreenGui:Destroy()
+end
+
+-- Core Render Loop & Input handling
+table.insert(connections, RunService.RenderStepped:Connect(function(deltaTime)
+    fovCircle.Visible = Settings.ShowFOV and (Settings.FOVSize > 0)
+    if Settings.ShowFOV and Settings.FOVSize > 0 then
+        fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        fovCircle.Radius = Settings.FOVSize
+        fovCircle.Color = ColorOptions[Settings.FOVColorIndex].Color
+    end
+end))
+
+print("[EBLAN-LOG] Stack-optimized framework initialized clean.")

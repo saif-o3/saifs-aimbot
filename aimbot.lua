@@ -85,7 +85,7 @@ UI.ScreenGui.ResetOnSpawn = false
 UI.ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local Theme = {
-    Accent = Color3.fromRGB(147, 51, 234),
+    Accent = Color3.fromRGB(255, 255, 255),
     Bg = Color3.fromRGB(18, 18, 20),
     Card = Color3.fromRGB(26, 26, 30),
     Text = Color3.fromRGB(235, 235, 240),
@@ -164,7 +164,7 @@ end
 
 UI.HudRowAimbot, UI.HudStatusAimbot = createHudStatusRow(8, "Aimbot [" .. getKeyName(Settings.KeyAimbot) .. "]")
 UI.HudRowSilent, UI.HudStatusSilent = createHudStatusRow(30, "Silent [" .. getKeyName(Settings.KeySilentAim) .. "]")
-UI.HudRowFly, UI.HudStatusFly = createHudStatusRow(52, "Movement [" .. getKeyName(Settings.KeyFly) .. "]")
+UI.HudRowFly, UI.HudStatusFly = createHudStatusRow(52, "Fly [" .. getKeyName(Settings.KeyFly) .. "]")
 UI.HudRowMenu, UI.HudStatusMenu = createHudStatusRow(74, "Menu [" .. getKeyName(Settings.KeyToggleMenu) .. "]")
 
 UI.HudStatusUnload = Instance.new("TextLabel", UI.KeybindsHud)
@@ -213,7 +213,7 @@ end
 local function createResetButton(card, onClick)
     local rBtn = Instance.new("TextButton", card)
     rBtn.Size = UDim2.new(0, 24, 0, 24)
-    rBtn.Position = UDim2.new(1, -208, 0.5, -12)
+    rBtn.Position = UDim2.new(1, -54, 0.5, -12)
     rBtn.BackgroundTransparency = 1
     rBtn.Font = Settings.CustomFont
     rBtn.Text = "↺"
@@ -268,13 +268,13 @@ do
     LblTriggerDelay.Font = Settings.CustomFont; LblTriggerDelay.Text = "Trigger Delay"; LblTriggerDelay.TextColor3 = Theme.Text; LblTriggerDelay.TextSize = 14; LblTriggerDelay.TextXAlignment = Enum.TextXAlignment.Left; LblTriggerDelay.ZIndex = 4
 
     UI.TriggerDelayTrack = Instance.new("Frame", CardTriggerDelay)
-    UI.TriggerDelayTrack.Size = UDim2.new(0, 140, 0, 14); UI.TriggerDelayTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.TriggerDelayTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TriggerDelayTrack.BorderSizePixel = 0; UI.TriggerDelayTrack.ZIndex = 4
+    UI.TriggerDelayTrack.Size = UDim2.new(0, 100, 0, 14); UI.TriggerDelayTrack.Position = UDim2.new(1, -162, 0.5, -7); UI.TriggerDelayTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TriggerDelayTrack.BorderSizePixel = 0; UI.TriggerDelayTrack.ZIndex = 4
     Instance.new("UICorner", UI.TriggerDelayTrack).CornerRadius = UDim.new(1, 0)
     UI.TriggerDelayFill = Instance.new("Frame", UI.TriggerDelayTrack)
     UI.TriggerDelayFill.Size = UDim2.new(Settings.TriggerbotDelay / 1.0, 0, 1, 0); UI.TriggerDelayFill.BackgroundColor3 = Theme.Accent; UI.TriggerDelayFill.BorderSizePixel = 0; UI.TriggerDelayFill.ZIndex = 5
     Instance.new("UICorner", UI.TriggerDelayFill).CornerRadius = UDim.new(1, 0)
     UI.TriggerDelayText = Instance.new("TextLabel", UI.TriggerDelayTrack)
-    UI.TriggerDelayText.Size = UDim2.new(1, 0, 1, 0); UI.TriggerDelayText.BackgroundTransparency = 1; UI.TriggerDelayText.Font = Settings.CustomFont; UI.TriggerDelayText.Text = string.format("%.2fs", Settings.TriggerbotDelay); UI.TriggerDelayText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.TriggerDelayText.TextSize = 12; UI.TriggerDelayText.ZIndex = 6
+    UI.TriggerDelayText.Size = UDim2.new(1, 0, 1, 0); UI.TriggerDelayText.BackgroundTransparency = 1; UI.TriggerDelayText.Font = Settings.CustomFont; UI.TriggerDelayText.Text = string.format("%.2fs", Settings.TriggerbotDelay); UI.TriggerDelayText.TextColor3 = Color3.fromRGB(18, 18, 20); UI.TriggerDelayText.TextSize = 11; UI.TriggerDelayText.ZIndex = 6
 
     createResetButton(CardTriggerDelay, function()
         Settings.TriggerbotDelay = 0.05
@@ -343,13 +343,13 @@ do
     LblTargetingSmooth.Font = Settings.CustomFont; LblTargetingSmooth.Text = "Targeting Smoothness"; LblTargetingSmooth.TextColor3 = Theme.Text; LblTargetingSmooth.TextSize = 14; LblTargetingSmooth.TextXAlignment = Enum.TextXAlignment.Left; LblTargetingSmooth.ZIndex = 4
 
     UI.TargetingSliderTrack = Instance.new("Frame", CardTargetingSmooth)
-    UI.TargetingSliderTrack.Size = UDim2.new(0, 140, 0, 14); UI.TargetingSliderTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.TargetingSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TargetingSliderTrack.BorderSizePixel = 0; UI.TargetingSliderTrack.ZIndex = 4
+    UI.TargetingSliderTrack.Size = UDim2.new(0, 100, 0, 14); UI.TargetingSliderTrack.Position = UDim2.new(1, -162, 0.5, -7); UI.TargetingSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TargetingSliderTrack.BorderSizePixel = 0; UI.TargetingSliderTrack.ZIndex = 4
     Instance.new("UICorner", UI.TargetingSliderTrack).CornerRadius = UDim.new(1, 0)
     UI.TargetingSliderFill = Instance.new("Frame", UI.TargetingSliderTrack)
     UI.TargetingSliderFill.Size = UDim2.new(Settings.TargetingSmoothness, 0, 1, 0); UI.TargetingSliderFill.BackgroundColor3 = Theme.Accent; UI.TargetingSliderFill.BorderSizePixel = 0; UI.TargetingSliderFill.ZIndex = 5
     Instance.new("UICorner", UI.TargetingSliderFill).CornerRadius = UDim.new(1, 0)
     UI.TargetingSliderText = Instance.new("TextLabel", UI.TargetingSliderTrack)
-    UI.TargetingSliderText.Size = UDim2.new(1, 0, 1, 0); UI.TargetingSliderText.BackgroundTransparency = 1; UI.TargetingSliderText.Font = Settings.CustomFont; UI.TargetingSliderText.Text = math.floor(Settings.TargetingSmoothness * 100) .. "%"; UI.TargetingSliderText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.TargetingSliderText.TextSize = 12; UI.TargetingSliderText.ZIndex = 6
+    UI.TargetingSliderText.Size = UDim2.new(1, 0, 1, 0); UI.TargetingSliderText.BackgroundTransparency = 1; UI.TargetingSliderText.Font = Settings.CustomFont; UI.TargetingSliderText.Text = math.floor(Settings.TargetingSmoothness * 100) .. "%"; UI.TargetingSliderText.TextColor3 = Color3.fromRGB(18, 18, 20); UI.TargetingSliderText.TextSize = 11; UI.TargetingSliderText.ZIndex = 6
 
     createResetButton(CardTargetingSmooth, function()
         Settings.TargetingSmoothness = 0.50
@@ -363,13 +363,13 @@ do
     LblTrackingSmooth.Font = Settings.CustomFont; LblTrackingSmooth.Text = "Tracking Smoothness"; LblTrackingSmooth.TextColor3 = Theme.Text; LblTrackingSmooth.TextSize = 14; LblTrackingSmooth.TextXAlignment = Enum.TextXAlignment.Left; LblTrackingSmooth.ZIndex = 4
 
     UI.TrackingSliderTrack = Instance.new("Frame", CardTrackingSmooth)
-    UI.TrackingSliderTrack.Size = UDim2.new(0, 140, 0, 14); UI.TrackingSliderTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.TrackingSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TrackingSliderTrack.BorderSizePixel = 0; UI.TrackingSliderTrack.ZIndex = 4
+    UI.TrackingSliderTrack.Size = UDim2.new(0, 100, 0, 14); UI.TrackingSliderTrack.Position = UDim2.new(1, -162, 0.5, -7); UI.TrackingSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TrackingSliderTrack.BorderSizePixel = 0; UI.TrackingSliderTrack.ZIndex = 4
     Instance.new("UICorner", UI.TrackingSliderTrack).CornerRadius = UDim.new(1, 0)
     UI.TrackingSliderFill = Instance.new("Frame", UI.TrackingSliderTrack)
     UI.TrackingSliderFill.Size = UDim2.new(Settings.TrackingSmoothness, 0, 1, 0); UI.TrackingSliderFill.BackgroundColor3 = Theme.Accent; UI.TrackingSliderFill.BorderSizePixel = 0; UI.TrackingSliderFill.ZIndex = 5
     Instance.new("UICorner", UI.TrackingSliderFill).CornerRadius = UDim.new(1, 0)
     UI.TrackingSliderText = Instance.new("TextLabel", UI.TrackingSliderTrack)
-    UI.TrackingSliderText.Size = UDim2.new(1, 0, 1, 0); UI.TrackingSliderText.BackgroundTransparency = 1; UI.TrackingSliderText.Font = Settings.CustomFont; UI.TrackingSliderText.Text = math.floor(Settings.TrackingSmoothness * 100) .. "%"; UI.TrackingSliderText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.TrackingSliderText.TextSize = 12; UI.TrackingSliderText.ZIndex = 6
+    UI.TrackingSliderText.Size = UDim2.new(1, 0, 1, 0); UI.TrackingSliderText.BackgroundTransparency = 1; UI.TrackingSliderText.Font = Settings.CustomFont; UI.TrackingSliderText.Text = math.floor(Settings.TrackingSmoothness * 100) .. "%"; UI.TrackingSliderText.TextColor3 = Color3.fromRGB(18, 18, 20); UI.TrackingSliderText.TextSize = 11; UI.TrackingSliderText.ZIndex = 6
 
     createResetButton(CardTrackingSmooth, function()
         Settings.TrackingSmoothness = 0.50
@@ -395,18 +395,19 @@ do
     LblFOVSlider.Font = Settings.CustomFont; LblFOVSlider.Text = "FOV Size"; LblFOVSlider.TextColor3 = Theme.Text; LblFOVSlider.TextSize = 14; LblFOVSlider.TextXAlignment = Enum.TextXAlignment.Left; LblFOVSlider.ZIndex = 4
 
     UI.FOVSliderTrack = Instance.new("Frame", CardFOVSlider)
-    UI.FOVSliderTrack.Size = UDim2.new(0, 140, 0, 14); UI.FOVSliderTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.FOVSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FOVSliderTrack.BorderSizePixel = 0; UI.FOVSliderTrack.ZIndex = 4
+    UI.FOVSliderTrack.Size = UDim2.new(0, 100, 0, 14); UI.FOVSliderTrack.Position = UDim2.new(1, -162, 0.5, -7); UI.FOVSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FOVSliderTrack.BorderSizePixel = 0; UI.FOVSliderTrack.ZIndex = 4
     Instance.new("UICorner", UI.FOVSliderTrack).CornerRadius = UDim.new(1, 0)
     UI.FOVSliderFill = Instance.new("Frame", UI.FOVSliderTrack)
     UI.FOVSliderFill.Size = UDim2.new(100/400, 0, 1, 0); UI.FOVSliderFill.BackgroundColor3 = Theme.Accent; UI.FOVSliderFill.BorderSizePixel = 0; UI.FOVSliderFill.ZIndex = 5
     Instance.new("UICorner", UI.FOVSliderFill).CornerRadius = UDim.new(1, 0)
     UI.FOVSliderText = Instance.new("TextLabel", UI.FOVSliderTrack)
-    UI.FOVSliderText.Size = UDim2.new(1, 0, 1, 0); UI.FOVSliderText.BackgroundTransparency = 1; UI.FOVSliderText.Font = Settings.CustomFont; UI.FOVSliderText.Text = "100"; UI.FOVSliderText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.FOVSliderText.TextSize = 12; UI.FOVSliderText.ZIndex = 6
+    UI.FOVSliderText.Size = UDim2.new(1, 0, 1, 0); UI.FOVSliderText.BackgroundTransparency = 1; UI.FOVSliderText.Font = Settings.CustomFont; UI.FOVSliderText.Text = "100"; UI.FOVSliderText.TextColor3 = Color3.fromRGB(18, 18, 20); UI.FOVSliderText.TextSize = 11; UI.FOVSliderText.ZIndex = 6
 
     createResetButton(CardFOVSlider, function()
         Settings.FOVSize = 100
         UI.FOVSliderFill.Size = UDim2.new(100/400, 0, 1, 0)
         UI.FOVSliderText.Text = "100"
+        fovCircle.Radius = Settings.FOVSize
     end)
     
     UI.Card1 = Card1; UI.CardSilent = CardSilent; UI.CardTriggerbot = CardTriggerbot; UI.CardTeamCheck = CardTeamCheck; UI.CardWallCheck = CardWallCheck; UI.CardFOV = CardFOV
@@ -472,13 +473,13 @@ do
     LblFlySpeed.Font = Settings.CustomFont; LblFlySpeed.Text = "Fly Speed"; LblFlySpeed.TextColor3 = Theme.Text; LblFlySpeed.TextSize = 14; LblFlySpeed.TextXAlignment = Enum.TextXAlignment.Left; LblFlySpeed.ZIndex = 4
 
     UI.FlySpeedTrack = Instance.new("Frame", CardFlySpeed)
-    UI.FlySpeedTrack.Size = UDim2.new(0, 140, 0, 14); UI.FlySpeedTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.FlySpeedTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FlySpeedTrack.BorderSizePixel = 0; UI.FlySpeedTrack.ZIndex = 4
+    UI.FlySpeedTrack.Size = UDim2.new(0, 100, 0, 14); UI.FlySpeedTrack.Position = UDim2.new(1, -162, 0.5, -7); UI.FlySpeedTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FlySpeedTrack.BorderSizePixel = 0; UI.FlySpeedTrack.ZIndex = 4
     Instance.new("UICorner", UI.FlySpeedTrack).CornerRadius = UDim.new(1, 0)
     UI.FlySpeedFill = Instance.new("Frame", UI.FlySpeedTrack)
     UI.FlySpeedFill.Size = UDim2.new((Settings.FlySpeed - 10) / 290, 0, 1, 0); UI.FlySpeedFill.BackgroundColor3 = Theme.Accent; UI.FlySpeedFill.BorderSizePixel = 0; UI.FlySpeedFill.ZIndex = 5
     Instance.new("UICorner", UI.FlySpeedFill).CornerRadius = UDim.new(1, 0)
     UI.FlySpeedText = Instance.new("TextLabel", UI.FlySpeedTrack)
-    UI.FlySpeedText.Size = UDim2.new(1, 0, 1, 0); UI.FlySpeedText.BackgroundTransparency = 1; UI.FlySpeedText.Font = Settings.CustomFont; UI.FlySpeedText.Text = tostring(Settings.FlySpeed); UI.FlySpeedText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.FlySpeedText.TextSize = 12; UI.FlySpeedText.ZIndex = 6
+    UI.FlySpeedText.Size = UDim2.new(1, 0, 1, 0); UI.FlySpeedText.BackgroundTransparency = 1; UI.FlySpeedText.Font = Settings.CustomFont; UI.FlySpeedText.Text = tostring(Settings.FlySpeed); UI.FlySpeedText.TextColor3 = Color3.fromRGB(18, 18, 20); UI.FlySpeedText.TextSize = 11; UI.FlySpeedText.ZIndex = 6
 
     createResetButton(CardFlySpeed, function()
         Settings.FlySpeed = 50
@@ -492,13 +493,13 @@ do
     LblFlyVert.Font = Settings.CustomFont; LblFlyVert.Text = "Vertical Speed"; LblFlyVert.TextColor3 = Theme.Text; LblFlyVert.TextSize = 14; LblFlyVert.TextXAlignment = Enum.TextXAlignment.Left; LblFlyVert.ZIndex = 4
 
     UI.FlyVertTrack = Instance.new("Frame", CardFlyVert)
-    UI.FlyVertTrack.Size = UDim2.new(0, 140, 0, 14); UI.FlyVertTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.FlyVertTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FlyVertTrack.BorderSizePixel = 0; UI.FlyVertTrack.ZIndex = 4
+    UI.FlyVertTrack.Size = UDim2.new(0, 100, 0, 14); UI.FlyVertTrack.Position = UDim2.new(1, -162, 0.5, -7); UI.FlyVertTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FlyVertTrack.BorderSizePixel = 0; UI.FlyVertTrack.ZIndex = 4
     Instance.new("UICorner", UI.FlyVertTrack).CornerRadius = UDim.new(1, 0)
     UI.FlyVertFill = Instance.new("Frame", UI.FlyVertTrack)
     UI.FlyVertFill.Size = UDim2.new((Settings.FlyVerticalSpeed - 10) / 290, 0, 1, 0); UI.FlyVertFill.BackgroundColor3 = Theme.Accent; UI.FlyVertFill.BorderSizePixel = 0; UI.FlyVertFill.ZIndex = 5
     Instance.new("UICorner", UI.FlyVertFill).CornerRadius = UDim.new(1, 0)
     UI.FlyVertText = Instance.new("TextLabel", UI.FlyVertTrack)
-    UI.FlyVertText.Size = UDim2.new(1, 0, 1, 0); UI.FlyVertText.BackgroundTransparency = 1; UI.FlyVertText.Font = Settings.CustomFont; UI.FlyVertText.Text = tostring(Settings.FlyVerticalSpeed); UI.FlyVertText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.FlyVertText.TextSize = 12; UI.FlyVertText.ZIndex = 6
+    UI.FlyVertText.Size = UDim2.new(1, 0, 1, 0); UI.FlyVertText.BackgroundTransparency = 1; UI.FlyVertText.Font = Settings.CustomFont; UI.FlyVertText.Text = tostring(Settings.FlyVerticalSpeed); UI.FlyVertText.TextColor3 = Color3.fromRGB(18, 18, 20); UI.FlyVertText.TextSize = 11; UI.FlyVertText.ZIndex = 6
 
     createResetButton(CardFlyVert, function()
         Settings.FlyVerticalSpeed = 50
@@ -524,13 +525,13 @@ do
     LblWalkSpeedSlider.Font = Settings.CustomFont; LblWalkSpeedSlider.Text = "WalkSpeed Value"; LblWalkSpeedSlider.TextColor3 = Theme.Text; LblWalkSpeedSlider.TextSize = 14; LblWalkSpeedSlider.TextXAlignment = Enum.TextXAlignment.Left; LblWalkSpeedSlider.ZIndex = 4
 
     UI.WalkSpeedTrack = Instance.new("Frame", CardWalkSpeedSlider)
-    UI.WalkSpeedTrack.Size = UDim2.new(0, 140, 0, 14); UI.WalkSpeedTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.WalkSpeedTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.WalkSpeedTrack.BorderSizePixel = 0; UI.WalkSpeedTrack.ZIndex = 4
+    UI.WalkSpeedTrack.Size = UDim2.new(0, 100, 0, 14); UI.WalkSpeedTrack.Position = UDim2.new(1, -162, 0.5, -7); UI.WalkSpeedTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.WalkSpeedTrack.BorderSizePixel = 0; UI.WalkSpeedTrack.ZIndex = 4
     Instance.new("UICorner", UI.WalkSpeedTrack).CornerRadius = UDim.new(1, 0)
     UI.WalkSpeedFill = Instance.new("Frame", UI.WalkSpeedTrack)
     UI.WalkSpeedFill.Size = UDim2.new((Settings.WalkSpeedValue - 16) / 234, 0, 1, 0); UI.WalkSpeedFill.BackgroundColor3 = Theme.Accent; UI.WalkSpeedFill.BorderSizePixel = 0; UI.WalkSpeedFill.ZIndex = 5
     Instance.new("UICorner", UI.WalkSpeedFill).CornerRadius = UDim.new(1, 0)
     UI.WalkSpeedText = Instance.new("TextLabel", UI.WalkSpeedTrack)
-    UI.WalkSpeedText.Size = UDim2.new(1, 0, 1, 0); UI.WalkSpeedText.BackgroundTransparency = 1; UI.WalkSpeedText.Font = Settings.CustomFont; UI.WalkSpeedText.Text = tostring(Settings.WalkSpeedValue); UI.WalkSpeedText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.WalkSpeedText.TextSize = 12; UI.WalkSpeedText.ZIndex = 6
+    UI.WalkSpeedText.Size = UDim2.new(1, 0, 1, 0); UI.WalkSpeedText.BackgroundTransparency = 1; UI.WalkSpeedText.Font = Settings.CustomFont; UI.WalkSpeedText.Text = tostring(Settings.WalkSpeedValue); UI.WalkSpeedText.TextColor3 = Color3.fromRGB(18, 18, 20); UI.WalkSpeedText.TextSize = 11; UI.WalkSpeedText.ZIndex = 6
 
     createResetButton(CardWalkSpeedSlider, function()
         Settings.WalkSpeedValue = 16
@@ -556,13 +557,13 @@ do
     LblJumpPowerSlider.Font = Settings.CustomFont; LblJumpPowerSlider.Text = "Jump Height Value"; LblJumpPowerSlider.TextColor3 = Theme.Text; LblJumpPowerSlider.TextSize = 14; LblJumpPowerSlider.TextXAlignment = Enum.TextXAlignment.Left; LblJumpPowerSlider.ZIndex = 4
 
     UI.JumpPowerTrack = Instance.new("Frame", CardJumpPowerSlider)
-    UI.JumpPowerTrack.Size = UDim2.new(0, 140, 0, 14); UI.JumpPowerTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.JumpPowerTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.JumpPowerTrack.BorderSizePixel = 0; UI.JumpPowerTrack.ZIndex = 4
+    UI.JumpPowerTrack.Size = UDim2.new(0, 100, 0, 14); UI.JumpPowerTrack.Position = UDim2.new(1, -162, 0.5, -7); UI.JumpPowerTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.JumpPowerTrack.BorderSizePixel = 0; UI.JumpPowerTrack.ZIndex = 4
     Instance.new("UICorner", UI.JumpPowerTrack).CornerRadius = UDim.new(1, 0)
     UI.JumpPowerFill = Instance.new("Frame", UI.JumpPowerTrack)
     UI.JumpPowerFill.Size = UDim2.new((Settings.JumpPowerValue - 50) / 200, 0, 1, 0); UI.JumpPowerFill.BackgroundColor3 = Theme.Accent; UI.JumpPowerFill.BorderSizePixel = 0; UI.JumpPowerFill.ZIndex = 5
     Instance.new("UICorner", UI.JumpPowerFill).CornerRadius = UDim.new(1, 0)
     UI.JumpPowerText = Instance.new("TextLabel", UI.JumpPowerTrack)
-    UI.JumpPowerText.Size = UDim2.new(1, 0, 1, 0); UI.JumpPowerText.BackgroundTransparency = 1; UI.JumpPowerText.Font = Settings.CustomFont; UI.JumpPowerText.Text = tostring(Settings.JumpPowerValue); UI.JumpPowerText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.JumpPowerText.TextSize = 12; UI.JumpPowerText.ZIndex = 6
+    UI.JumpPowerText.Size = UDim2.new(1, 0, 1, 0); UI.JumpPowerText.BackgroundTransparency = 1; UI.JumpPowerText.Font = Settings.CustomFont; UI.JumpPowerText.Text = tostring(Settings.JumpPowerValue); UI.JumpPowerText.TextColor3 = Color3.fromRGB(18, 18, 20); UI.JumpPowerText.TextSize = 11; UI.JumpPowerText.ZIndex = 6
 
     createResetButton(CardJumpPowerSlider, function()
         Settings.JumpPowerValue = 50
@@ -703,7 +704,7 @@ do
 
     UI.CardKeyAimbot, UI.ValKeyAimbot = createKeybindCard("Aimbot", "KeyAimbot", 2)
     UI.CardKeySilent, UI.ValKeySilent = createKeybindCard("Silent Aim", "KeySilentAim", 3)
-    UI.CardKeyFly, UI.ValKeyFly = createKeybindCard("Fly Toggle", "KeyFly", 4)
+    UI.CardKeyFly, UI.ValKeyFly = createKeybindCard("Fly", "KeyFly", 4)
     UI.CardKeyMenu, UI.ValKeyMenu = createKeybindCard("Menu Toggle", "KeyToggleMenu", 5)
     UI.CardUnload, UI.ValKeyUnload = createKeybindCard("Unload", "KeyUnload", 6)
     UI.CardShowKeybindsHud = CardShowKeybindsHud
@@ -843,7 +844,7 @@ local function updateUIStates()
 
     UI.HudRowAimbot.Text = "Aimbot [" .. getKeyName(Settings.KeyAimbot) .. "]"
     UI.HudRowSilent.Text = "Silent [" .. getKeyName(Settings.KeySilentAim) .. "]"
-    UI.HudRowFly.Text = "Movement [" .. getKeyName(Settings.KeyFly) .. "]"
+    UI.HudRowFly.Text = "Fly [" .. getKeyName(Settings.KeyFly) .. "]"
     UI.HudRowMenu.Text = "Menu [" .. getKeyName(Settings.KeyToggleMenu) .. "]"
     UI.HudStatusUnload.Text = "Press " .. getKeyName(Settings.KeyUnload) .. " to Unload"
 
@@ -853,6 +854,9 @@ local function updateUIStates()
 
     UI.HudStatusSilent.Text = Settings.SilentAimEnabled and "ON" or "OFF"
     UI.HudStatusSilent.TextColor3 = Settings.SilentAimEnabled and t.Accent or Color3.fromRGB(239, 68, 68)
+
+    UI.HudStatusFly.Text = Settings.FlyActive and "ON" or "OFF"
+    UI.HudStatusFly.TextColor3 = Settings.FlyActive and t.Accent or Color3.fromRGB(239, 68, 68)
 
     UI.HudStatusMenu.Text = UIState.menuVisible and "ON" or "OFF"
     UI.HudStatusMenu.TextColor3 = UIState.menuVisible and t.Accent or Color3.fromRGB(239, 68, 68)
@@ -1214,7 +1218,7 @@ local function isCursorOverPlayer()
     return false
 end
 
--- Silent Aim hook for raycasts / camera redirection
+-- Silent Aim Hook using namecall
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
@@ -1224,6 +1228,8 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
         if target then
             if method == "Raycast" and typeof(args[2]) == "Vector3" then
                 args[2] = (target.Position - args[1]).Unit * args[2].Magnitude
+            elseif method == "FindPartOnRay" and typeof(args[1]) == "Ray" then
+                args[1] = Ray.new(args[1].Origin, (target.Position - args[1].Origin).Unit * args[1].Direction.Magnitude)
             end
         end
     end

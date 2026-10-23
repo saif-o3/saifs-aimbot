@@ -1,4 +1,3 @@
--- language: Lua, file: saifs aimbot.lua, target: Roblox, Luau
 local Settings = {
     AimbotEnabled = false,
     AimbotMode = "Toggle",
@@ -44,7 +43,9 @@ local Settings = {
     KeyFly = Enum.KeyCode.X,
     KeyToggleMenu = Enum.KeyCode.LeftAlt,
     KeyUnload = Enum.KeyCode.U,
-    ThemeIndex = 1
+    ThemeIndex = 1,
+    
+    TeleportOffsetMode = "In Front"
 }
 
 local Players = game:GetService("Players")
@@ -88,7 +89,6 @@ UI.ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local ColorOptions = {
     {Name = "White", Color = Color3.fromRGB(255, 255, 255)},
-    {Name = "Black", Color = Color3.fromRGB(15, 15, 15)},
     {Name = "Purple", Color = Color3.fromRGB(147, 51, 234)},
     {Name = "Blue", Color = Color3.fromRGB(30, 144, 255)},
     {Name = "Green", Color = Color3.fromRGB(34, 197, 94)},
@@ -99,7 +99,6 @@ local ColorOptions = {
 
 local Themes = {
     {Name = "White", Accent = Color3.fromRGB(255, 255, 255), Bg = Color3.fromRGB(18, 18, 20), Card = Color3.fromRGB(26, 26, 30), Text = Color3.fromRGB(235, 235, 240), SubText = Color3.fromRGB(130, 130, 145), Off = Color3.fromRGB(60, 60, 70), TabActive = Color3.fromRGB(38, 38, 45), TabInactive = Color3.fromRGB(22, 22, 26)},
-    {Name = "Black", Accent = Color3.fromRGB(25, 25, 25), Bg = Color3.fromRGB(18, 18, 20), Card = Color3.fromRGB(26, 26, 30), Text = Color3.fromRGB(235, 235, 240), SubText = Color3.fromRGB(130, 130, 145), Off = Color3.fromRGB(60, 60, 70), TabActive = Color3.fromRGB(38, 38, 45), TabInactive = Color3.fromRGB(22, 22, 26)},
     {Name = "Purple", Accent = Color3.fromRGB(147, 51, 234), Bg = Color3.fromRGB(18, 18, 20), Card = Color3.fromRGB(26, 26, 30), Text = Color3.fromRGB(235, 235, 240), SubText = Color3.fromRGB(130, 130, 145), Off = Color3.fromRGB(60, 60, 70), TabActive = Color3.fromRGB(38, 38, 45), TabInactive = Color3.fromRGB(22, 22, 26)},
     {Name = "Blue", Accent = Color3.fromRGB(30, 144, 255), Bg = Color3.fromRGB(18, 18, 20), Card = Color3.fromRGB(26, 26, 30), Text = Color3.fromRGB(235, 235, 240), SubText = Color3.fromRGB(130, 130, 145), Off = Color3.fromRGB(60, 60, 70), TabActive = Color3.fromRGB(38, 38, 45), TabInactive = Color3.fromRGB(22, 22, 26)},
     {Name = "Green", Accent = Color3.fromRGB(34, 197, 94), Bg = Color3.fromRGB(18, 18, 20), Card = Color3.fromRGB(26, 26, 30), Text = Color3.fromRGB(235, 235, 240), SubText = Color3.fromRGB(130, 130, 145), Off = Color3.fromRGB(60, 60, 70), TabActive = Color3.fromRGB(38, 38, 45), TabInactive = Color3.fromRGB(22, 22, 26)},
@@ -224,6 +223,20 @@ local function createCard(tabIndex, order)
     return card
 end
 
+local function createResetButton(card, onClick)
+    local rBtn = Instance.new("TextButton", card)
+    rBtn.Size = UDim2.new(0, 24, 0, 24)
+    rBtn.Position = UDim2.new(1, -208, 0.5, -12)
+    rBtn.BackgroundTransparency = 1
+    rBtn.Font = Settings.CustomFont
+    rBtn.Text = "↺"
+    rBtn.TextColor3 = getTheme().SubText
+    rBtn.TextSize = 16
+    rBtn.ZIndex = 6
+    rBtn.MouseButton1Click:Connect(onClick)
+    return rBtn
+end
+
 -- TAB 1
 do
     local Card1 = createCard(1, 1)
@@ -256,13 +269,19 @@ do
     LblTriggerDelay.Font = Settings.CustomFont; LblTriggerDelay.Text = "Trigger Delay"; LblTriggerDelay.TextColor3 = getTheme().Text; LblTriggerDelay.TextSize = 14; LblTriggerDelay.TextXAlignment = Enum.TextXAlignment.Left; LblTriggerDelay.ZIndex = 4
 
     UI.TriggerDelayTrack = Instance.new("Frame", CardTriggerDelay)
-    UI.TriggerDelayTrack.Size = UDim2.new(0, 170, 0, 14); UI.TriggerDelayTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.TriggerDelayTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TriggerDelayTrack.BorderSizePixel = 0; UI.TriggerDelayTrack.ZIndex = 4
+    UI.TriggerDelayTrack.Size = UDim2.new(0, 140, 0, 14); UI.TriggerDelayTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.TriggerDelayTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TriggerDelayTrack.BorderSizePixel = 0; UI.TriggerDelayTrack.ZIndex = 4
     Instance.new("UICorner", UI.TriggerDelayTrack).CornerRadius = UDim.new(1, 0)
     UI.TriggerDelayFill = Instance.new("Frame", UI.TriggerDelayTrack)
     UI.TriggerDelayFill.Size = UDim2.new(Settings.TriggerbotDelay / 1.0, 0, 1, 0); UI.TriggerDelayFill.BackgroundColor3 = getTheme().Accent; UI.TriggerDelayFill.BorderSizePixel = 0; UI.TriggerDelayFill.ZIndex = 5
     Instance.new("UICorner", UI.TriggerDelayFill).CornerRadius = UDim.new(1, 0)
     UI.TriggerDelayText = Instance.new("TextLabel", UI.TriggerDelayTrack)
     UI.TriggerDelayText.Size = UDim2.new(1, 0, 1, 0); UI.TriggerDelayText.BackgroundTransparency = 1; UI.TriggerDelayText.Font = Settings.CustomFont; UI.TriggerDelayText.Text = string.format("%.2fs", Settings.TriggerbotDelay); UI.TriggerDelayText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.TriggerDelayText.TextSize = 12; UI.TriggerDelayText.ZIndex = 6
+
+    createResetButton(CardTriggerDelay, function()
+        Settings.TriggerbotDelay = 0.05
+        UI.TriggerDelayFill.Size = UDim2.new(Settings.TriggerbotDelay / 1.0, 0, 1, 0)
+        UI.TriggerDelayText.Text = string.format("%.2fs", Settings.TriggerbotDelay)
+    end)
 
     local CardTarget = createCard(1, 4)
     local LblTarget = Instance.new("TextLabel", CardTarget)
@@ -325,7 +344,7 @@ do
     LblTargetingSmooth.Font = Settings.CustomFont; LblTargetingSmooth.Text = "Targeting Smoothness"; LblTargetingSmooth.TextColor3 = getTheme().Text; LblTargetingSmooth.TextSize = 14; LblTargetingSmooth.TextXAlignment = Enum.TextXAlignment.Left; LblTargetingSmooth.ZIndex = 4
 
     UI.TargetingSliderTrack = Instance.new("Frame", CardTargetingSmooth)
-    UI.TargetingSliderTrack.Size = UDim2.new(0, 170, 0, 14); UI.TargetingSliderTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.TargetingSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TargetingSliderTrack.BorderSizePixel = 0; UI.TargetingSliderTrack.ZIndex = 4
+    UI.TargetingSliderTrack.Size = UDim2.new(0, 140, 0, 14); UI.TargetingSliderTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.TargetingSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TargetingSliderTrack.BorderSizePixel = 0; UI.TargetingSliderTrack.ZIndex = 4
     Instance.new("UICorner", UI.TargetingSliderTrack).CornerRadius = UDim.new(1, 0)
     UI.TargetingSliderFill = Instance.new("Frame", UI.TargetingSliderTrack)
     UI.TargetingSliderFill.Size = UDim2.new(Settings.TargetingSmoothness, 0, 1, 0); UI.TargetingSliderFill.BackgroundColor3 = getTheme().Accent; UI.TargetingSliderFill.BorderSizePixel = 0; UI.TargetingSliderFill.ZIndex = 5
@@ -333,19 +352,31 @@ do
     UI.TargetingSliderText = Instance.new("TextLabel", UI.TargetingSliderTrack)
     UI.TargetingSliderText.Size = UDim2.new(1, 0, 1, 0); UI.TargetingSliderText.BackgroundTransparency = 1; UI.TargetingSliderText.Font = Settings.CustomFont; UI.TargetingSliderText.Text = math.floor(Settings.TargetingSmoothness * 100) .. "%"; UI.TargetingSliderText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.TargetingSliderText.TextSize = 12; UI.TargetingSliderText.ZIndex = 6
 
+    createResetButton(CardTargetingSmooth, function()
+        Settings.TargetingSmoothness = 0.50
+        UI.TargetingSliderFill.Size = UDim2.new(Settings.TargetingSmoothness, 0, 1, 0)
+        UI.TargetingSliderText.Text = math.floor(Settings.TargetingSmoothness * 100) .. "%"
+    end)
+
     local CardTrackingSmooth = createCard(1, 9)
     local LblTrackingSmooth = Instance.new("TextLabel", CardTrackingSmooth)
     LblTrackingSmooth.Size = UDim2.new(0, 200, 0, 34); LblTrackingSmooth.Position = UDim2.new(0, 12, 0, 0); LblTrackingSmooth.BackgroundTransparency = 1
     LblTrackingSmooth.Font = Settings.CustomFont; LblTrackingSmooth.Text = "Tracking Smoothness"; LblTrackingSmooth.TextColor3 = getTheme().Text; LblTrackingSmooth.TextSize = 14; LblTrackingSmooth.TextXAlignment = Enum.TextXAlignment.Left; LblTrackingSmooth.ZIndex = 4
 
     UI.TrackingSliderTrack = Instance.new("Frame", CardTrackingSmooth)
-    UI.TrackingSliderTrack.Size = UDim2.new(0, 170, 0, 14); UI.TrackingSliderTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.TrackingSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TrackingSliderTrack.BorderSizePixel = 0; UI.TrackingSliderTrack.ZIndex = 4
+    UI.TrackingSliderTrack.Size = UDim2.new(0, 140, 0, 14); UI.TrackingSliderTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.TrackingSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.TrackingSliderTrack.BorderSizePixel = 0; UI.TrackingSliderTrack.ZIndex = 4
     Instance.new("UICorner", UI.TrackingSliderTrack).CornerRadius = UDim.new(1, 0)
     UI.TrackingSliderFill = Instance.new("Frame", UI.TrackingSliderTrack)
     UI.TrackingSliderFill.Size = UDim2.new(Settings.TrackingSmoothness, 0, 1, 0); UI.TrackingSliderFill.BackgroundColor3 = getTheme().Accent; UI.TrackingSliderFill.BorderSizePixel = 0; UI.TrackingSliderFill.ZIndex = 5
     Instance.new("UICorner", UI.TrackingSliderFill).CornerRadius = UDim.new(1, 0)
     UI.TrackingSliderText = Instance.new("TextLabel", UI.TrackingSliderTrack)
     UI.TrackingSliderText.Size = UDim2.new(1, 0, 1, 0); UI.TrackingSliderText.BackgroundTransparency = 1; UI.TrackingSliderText.Font = Settings.CustomFont; UI.TrackingSliderText.Text = math.floor(Settings.TrackingSmoothness * 100) .. "%"; UI.TrackingSliderText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.TrackingSliderText.TextSize = 12; UI.TrackingSliderText.ZIndex = 6
+
+    createResetButton(CardTrackingSmooth, function()
+        Settings.TrackingSmoothness = 0.50
+        UI.TrackingSliderFill.Size = UDim2.new(Settings.TrackingSmoothness, 0, 1, 0)
+        UI.TrackingSliderText.Text = math.floor(Settings.TrackingSmoothness * 100) .. "%"
+    end)
 
     local CardFOV = createCard(1, 10)
     local LblFOV = Instance.new("TextLabel", CardFOV)
@@ -365,13 +396,19 @@ do
     LblFOVSlider.Font = Settings.CustomFont; LblFOVSlider.Text = "FOV Size"; LblFOVSlider.TextColor3 = getTheme().Text; LblFOVSlider.TextSize = 14; LblFOVSlider.TextXAlignment = Enum.TextXAlignment.Left; LblFOVSlider.ZIndex = 4
 
     UI.FOVSliderTrack = Instance.new("Frame", CardFOVSlider)
-    UI.FOVSliderTrack.Size = UDim2.new(0, 170, 0, 14); UI.FOVSliderTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.FOVSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FOVSliderTrack.BorderSizePixel = 0; UI.FOVSliderTrack.ZIndex = 4
+    UI.FOVSliderTrack.Size = UDim2.new(0, 140, 0, 14); UI.FOVSliderTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.FOVSliderTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FOVSliderTrack.BorderSizePixel = 0; UI.FOVSliderTrack.ZIndex = 4
     Instance.new("UICorner", UI.FOVSliderTrack).CornerRadius = UDim.new(1, 0)
     UI.FOVSliderFill = Instance.new("Frame", UI.FOVSliderTrack)
     UI.FOVSliderFill.Size = UDim2.new(100/400, 0, 1, 0); UI.FOVSliderFill.BackgroundColor3 = getTheme().Accent; UI.FOVSliderFill.BorderSizePixel = 0; UI.FOVSliderFill.ZIndex = 5
     Instance.new("UICorner", UI.FOVSliderFill).CornerRadius = UDim.new(1, 0)
     UI.FOVSliderText = Instance.new("TextLabel", UI.FOVSliderTrack)
     UI.FOVSliderText.Size = UDim2.new(1, 0, 1, 0); UI.FOVSliderText.BackgroundTransparency = 1; UI.FOVSliderText.Font = Settings.CustomFont; UI.FOVSliderText.Text = "100"; UI.FOVSliderText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.FOVSliderText.TextSize = 12; UI.FOVSliderText.ZIndex = 6
+
+    createResetButton(CardFOVSlider, function()
+        Settings.FOVSize = 100
+        UI.FOVSliderFill.Size = UDim2.new(100/400, 0, 1, 0)
+        UI.FOVSliderText.Text = "100"
+    end)
 
     local CardFOVColor = createCard(1, 12)
     local LblFOVColor = Instance.new("TextLabel", CardFOVColor)
@@ -487,7 +524,7 @@ do
     LblFlySpeed.Font = Settings.CustomFont; LblFlySpeed.Text = "Fly Speed"; LblFlySpeed.TextColor3 = getTheme().Text; LblFlySpeed.TextSize = 14; LblFlySpeed.TextXAlignment = Enum.TextXAlignment.Left; LblFlySpeed.ZIndex = 4
 
     UI.FlySpeedTrack = Instance.new("Frame", CardFlySpeed)
-    UI.FlySpeedTrack.Size = UDim2.new(0, 170, 0, 14); UI.FlySpeedTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.FlySpeedTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FlySpeedTrack.BorderSizePixel = 0; UI.FlySpeedTrack.ZIndex = 4
+    UI.FlySpeedTrack.Size = UDim2.new(0, 140, 0, 14); UI.FlySpeedTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.FlySpeedTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FlySpeedTrack.BorderSizePixel = 0; UI.FlySpeedTrack.ZIndex = 4
     Instance.new("UICorner", UI.FlySpeedTrack).CornerRadius = UDim.new(1, 0)
     UI.FlySpeedFill = Instance.new("Frame", UI.FlySpeedTrack)
     UI.FlySpeedFill.Size = UDim2.new((Settings.FlySpeed - 10) / 290, 0, 1, 0); UI.FlySpeedFill.BackgroundColor3 = getTheme().Accent; UI.FlySpeedFill.BorderSizePixel = 0; UI.FlySpeedFill.ZIndex = 5
@@ -495,19 +532,31 @@ do
     UI.FlySpeedText = Instance.new("TextLabel", UI.FlySpeedTrack)
     UI.FlySpeedText.Size = UDim2.new(1, 0, 1, 0); UI.FlySpeedText.BackgroundTransparency = 1; UI.FlySpeedText.Font = Settings.CustomFont; UI.FlySpeedText.Text = tostring(Settings.FlySpeed); UI.FlySpeedText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.FlySpeedText.TextSize = 12; UI.FlySpeedText.ZIndex = 6
 
+    createResetButton(CardFlySpeed, function()
+        Settings.FlySpeed = 50
+        UI.FlySpeedFill.Size = UDim2.new((Settings.FlySpeed - 10) / 290, 0, 1, 0)
+        UI.FlySpeedText.Text = tostring(Settings.FlySpeed)
+    end)
+
     local CardFlyVert = createCard(3, 4)
     local LblFlyVert = Instance.new("TextLabel", CardFlyVert)
     LblFlyVert.Size = UDim2.new(0, 200, 0, 34); LblFlyVert.Position = UDim2.new(0, 12, 0, 0); LblFlyVert.BackgroundTransparency = 1
     LblFlyVert.Font = Settings.CustomFont; LblFlyVert.Text = "Vertical Speed"; LblFlyVert.TextColor3 = getTheme().Text; LblFlyVert.TextSize = 14; LblFlyVert.TextXAlignment = Enum.TextXAlignment.Left; LblFlyVert.ZIndex = 4
 
     UI.FlyVertTrack = Instance.new("Frame", CardFlyVert)
-    UI.FlyVertTrack.Size = UDim2.new(0, 170, 0, 14); UI.FlyVertTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.FlyVertTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FlyVertTrack.BorderSizePixel = 0; UI.FlyVertTrack.ZIndex = 4
+    UI.FlyVertTrack.Size = UDim2.new(0, 140, 0, 14); UI.FlyVertTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.FlyVertTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.FlyVertTrack.BorderSizePixel = 0; UI.FlyVertTrack.ZIndex = 4
     Instance.new("UICorner", UI.FlyVertTrack).CornerRadius = UDim.new(1, 0)
     UI.FlyVertFill = Instance.new("Frame", UI.FlyVertTrack)
     UI.FlyVertFill.Size = UDim2.new((Settings.FlyVerticalSpeed - 10) / 290, 0, 1, 0); UI.FlyVertFill.BackgroundColor3 = getTheme().Accent; UI.FlyVertFill.BorderSizePixel = 0; UI.FlyVertFill.ZIndex = 5
     Instance.new("UICorner", UI.FlyVertFill).CornerRadius = UDim.new(1, 0)
     UI.FlyVertText = Instance.new("TextLabel", UI.FlyVertTrack)
     UI.FlyVertText.Size = UDim2.new(1, 0, 1, 0); UI.FlyVertText.BackgroundTransparency = 1; UI.FlyVertText.Font = Settings.CustomFont; UI.FlyVertText.Text = tostring(Settings.FlyVerticalSpeed); UI.FlyVertText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.FlyVertText.TextSize = 12; UI.FlyVertText.ZIndex = 6
+
+    createResetButton(CardFlyVert, function()
+        Settings.FlyVerticalSpeed = 50
+        UI.FlyVertFill.Size = UDim2.new((Settings.FlyVerticalSpeed - 10) / 290, 0, 1, 0)
+        UI.FlyVertText.Text = tostring(Settings.FlyVerticalSpeed)
+    end)
 
     local CardWalkSpeed = createCard(3, 5)
     local LblWalkSpeed = Instance.new("TextLabel", CardWalkSpeed)
@@ -527,13 +576,19 @@ do
     LblWalkSpeedSlider.Font = Settings.CustomFont; LblWalkSpeedSlider.Text = "WalkSpeed Value"; LblWalkSpeedSlider.TextColor3 = getTheme().Text; LblWalkSpeedSlider.TextSize = 14; LblWalkSpeedSlider.TextXAlignment = Enum.TextXAlignment.Left; LblWalkSpeedSlider.ZIndex = 4
 
     UI.WalkSpeedTrack = Instance.new("Frame", CardWalkSpeedSlider)
-    UI.WalkSpeedTrack.Size = UDim2.new(0, 170, 0, 14); UI.WalkSpeedTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.WalkSpeedTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.WalkSpeedTrack.BorderSizePixel = 0; UI.WalkSpeedTrack.ZIndex = 4
+    UI.WalkSpeedTrack.Size = UDim2.new(0, 140, 0, 14); UI.WalkSpeedTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.WalkSpeedTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.WalkSpeedTrack.BorderSizePixel = 0; UI.WalkSpeedTrack.ZIndex = 4
     Instance.new("UICorner", UI.WalkSpeedTrack).CornerRadius = UDim.new(1, 0)
     UI.WalkSpeedFill = Instance.new("Frame", UI.WalkSpeedTrack)
     UI.WalkSpeedFill.Size = UDim2.new((Settings.WalkSpeedValue - 16) / 234, 0, 1, 0); UI.WalkSpeedFill.BackgroundColor3 = getTheme().Accent; UI.WalkSpeedFill.BorderSizePixel = 0; UI.WalkSpeedFill.ZIndex = 5
     Instance.new("UICorner", UI.WalkSpeedFill).CornerRadius = UDim.new(1, 0)
     UI.WalkSpeedText = Instance.new("TextLabel", UI.WalkSpeedTrack)
     UI.WalkSpeedText.Size = UDim2.new(1, 0, 1, 0); UI.WalkSpeedText.BackgroundTransparency = 1; UI.WalkSpeedText.Font = Settings.CustomFont; UI.WalkSpeedText.Text = tostring(Settings.WalkSpeedValue); UI.WalkSpeedText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.WalkSpeedText.TextSize = 12; UI.WalkSpeedText.ZIndex = 6
+
+    createResetButton(CardWalkSpeedSlider, function()
+        Settings.WalkSpeedValue = 16
+        UI.WalkSpeedFill.Size = UDim2.new((Settings.WalkSpeedValue - 16) / 234, 0, 1, 0)
+        UI.WalkSpeedText.Text = tostring(Settings.WalkSpeedValue)
+    end)
 
     local CardJumpPower = createCard(3, 7)
     local LblJumpPower = Instance.new("TextLabel", CardJumpPower)
@@ -553,13 +608,19 @@ do
     LblJumpPowerSlider.Font = Settings.CustomFont; LblJumpPowerSlider.Text = "Jump Height Value"; LblJumpPowerSlider.TextColor3 = getTheme().Text; LblJumpPowerSlider.TextSize = 14; LblJumpPowerSlider.TextXAlignment = Enum.TextXAlignment.Left; LblJumpPowerSlider.ZIndex = 4
 
     UI.JumpPowerTrack = Instance.new("Frame", CardJumpPowerSlider)
-    UI.JumpPowerTrack.Size = UDim2.new(0, 170, 0, 14); UI.JumpPowerTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.JumpPowerTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.JumpPowerTrack.BorderSizePixel = 0; UI.JumpPowerTrack.ZIndex = 4
+    UI.JumpPowerTrack.Size = UDim2.new(0, 140, 0, 14); UI.JumpPowerTrack.Position = UDim2.new(1, -182, 0.5, -7); UI.JumpPowerTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.JumpPowerTrack.BorderSizePixel = 0; UI.JumpPowerTrack.ZIndex = 4
     Instance.new("UICorner", UI.JumpPowerTrack).CornerRadius = UDim.new(1, 0)
     UI.JumpPowerFill = Instance.new("Frame", UI.JumpPowerTrack)
     UI.JumpPowerFill.Size = UDim2.new((Settings.JumpPowerValue - 50) / 200, 0, 1, 0); UI.JumpPowerFill.BackgroundColor3 = getTheme().Accent; UI.JumpPowerFill.BorderSizePixel = 0; UI.JumpPowerFill.ZIndex = 5
     Instance.new("UICorner", UI.JumpPowerFill).CornerRadius = UDim.new(1, 0)
     UI.JumpPowerText = Instance.new("TextLabel", UI.JumpPowerTrack)
     UI.JumpPowerText.Size = UDim2.new(1, 0, 1, 0); UI.JumpPowerText.BackgroundTransparency = 1; UI.JumpPowerText.Font = Settings.CustomFont; UI.JumpPowerText.Text = tostring(Settings.JumpPowerValue); UI.JumpPowerText.TextColor3 = Color3.fromRGB(255, 255, 255); UI.JumpPowerText.TextSize = 12; UI.JumpPowerText.ZIndex = 6
+
+    createResetButton(CardJumpPowerSlider, function()
+        Settings.JumpPowerValue = 50
+        UI.JumpPowerFill.Size = UDim2.new((Settings.JumpPowerValue - 50) / 200, 0, 1, 0)
+        UI.JumpPowerText.Text = tostring(Settings.JumpPowerValue)
+    end)
 
     local CardInfJump = createCard(3, 9)
     local LblInfJump = Instance.new("TextLabel", CardInfJump)
@@ -576,10 +637,32 @@ do
     UI.CardFly = CardFly; UI.CardFlyNoClip = CardFlyNoClip; UI.CardWalkSpeed = CardWalkSpeed; UI.CardJumpPower = CardJumpPower; UI.CardInfJump = CardInfJump
 end
 
--- TAB 4
+-- TAB 4 (Teleport)
 do
+    local CardTpMode = createCard(4, 1)
+    local LblTpMode = Instance.new("TextLabel", CardTpMode)
+    LblTpMode.Size = UDim2.new(0, 200, 0, 34); LblTpMode.Position = UDim2.new(0, 12, 0, 0); LblTpMode.BackgroundTransparency = 1
+    LblTpMode.Font = Settings.CustomFont; LblTpMode.Text = "Teleport Position"; LblTpMode.TextColor3 = getTheme().Text; LblTpMode.TextSize = 14; LblTpMode.TextXAlignment = Enum.TextXAlignment.Left; LblTpMode.ZIndex = 4
+
+    UI.ValTpMode = Instance.new("TextButton", CardTpMode)
+    UI.ValTpMode.Size = UDim2.new(0, 130, 0, 24); UI.ValTpMode.Position = UDim2.new(1, -142, 0.5, -12); UI.ValTpMode.BackgroundColor3 = Color3.fromRGB(35, 35, 42); UI.ValTpMode.BorderSizePixel = 0
+    UI.ValTpMode.Font = Settings.CustomFont; UI.ValTpMode.Text = Settings.TeleportOffsetMode; UI.ValTpMode.TextColor3 = getTheme().Accent; UI.ValTpMode.TextSize = 13; UI.ValTpMode.ZIndex = 4
+    Instance.new("UICorner", UI.ValTpMode).CornerRadius = UDim.new(0, 5)
+
+    local tpModes = {"In Front", "Behind", "On Top", "Below"}
+    UI.ValTpMode.MouseButton1Click:Connect(function()
+        for idx, m in ipairs(tpModes) do
+            if m == Settings.TeleportOffsetMode then
+                Settings.TeleportOffsetMode = tpModes[(idx % #tpModes) + 1]
+                break
+            end
+        end
+        UI.ValTpMode.Text = Settings.TeleportOffsetMode
+    end)
+
     UI.TeleportScroller = Instance.new("ScrollingFrame", UI.tabContainers[4])
-    UI.TeleportScroller.Size = UDim2.new(1, 0, 1, 0)
+    UI.TeleportScroller.Size = UDim2.new(1, 0, 1, -42)
+    UI.TeleportScroller.Position = UDim2.new(0, 0, 0, 42)
     UI.TeleportScroller.BackgroundTransparency = 1
     UI.TeleportScroller.BorderSizePixel = 0
     UI.TeleportScroller.CanvasSize = UDim2.new(0, 0, 0, 400)
@@ -603,7 +686,7 @@ do
                 tpBtn.BackgroundColor3 = getTheme().Card
                 tpBtn.BorderSizePixel = 0
                 tpBtn.Font = Settings.CustomFont
-                tpBtn.Text = " Teleport to: " .. p.Name
+                tpBtn.Text = " " .. p.Name
                 tpBtn.TextColor3 = getTheme().Text
                 tpBtn.TextSize = 14
                 tpBtn.TextXAlignment = Enum.TextXAlignment.Left
@@ -618,7 +701,18 @@ do
                         local hrp = char:FindFirstChild("HumanoidRootPart")
                         local targetHrp = targetChar:FindFirstChild("HumanoidRootPart")
                         if hrp and targetHrp then
-                            hrp.CFrame = targetHrp.CFrame + Vector3.new(0, 3, 0)
+                            local offset = CFrame.new(0, 0, 0)
+                            local mode = Settings.TeleportOffsetMode
+                            if mode == "In Front" then
+                                offset = CFrame.new(0, 0, -5)
+                            elseif mode == "Behind" then
+                                offset = CFrame.new(0, 0, 5)
+                            elseif mode == "On Top" then
+                                offset = CFrame.new(0, 5, 0)
+                            elseif mode == "Below" then
+                                offset = CFrame.new(0, -5, 0)
+                            end
+                            hrp.CFrame = targetHrp.CFrame * offset
                         end
                     end
                 end)
@@ -780,6 +874,7 @@ local function updateThemeColors()
     UI.ValTarget.TextColor3 = t.Accent
     UI.ValAimbotMode.TextColor3 = t.Accent
     UI.ValTheme.TextColor3 = t.Accent
+    UI.ValTpMode.TextColor3 = t.Accent
     UI.TargetingSliderFill.BackgroundColor3 = t.Accent
     UI.TrackingSliderFill.BackgroundColor3 = t.Accent
     UI.TriggerDelayFill.BackgroundColor3 = t.Accent
@@ -1129,6 +1224,12 @@ local function isInputMatching(input, bind)
     return false
 end
 
+-- State variables for ESP toggle memory
+local espPreviousStates = {
+    Highlight = false, Box = false, Name = false, Health = false, Skeleton = false, Tracers = false, HeadDot = false
+}
+local espToggledOn = false
+
 table.insert(connections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if listeningForKey then
         if ignoreNextClick then
@@ -1152,8 +1253,33 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input, ga
     elseif isInputMatching(input, Settings.KeyUnload) then
         unloadHub()
     elseif isInputMatching(input, Settings.KeyESP) then
-        local newState = not (Settings.ESPHighlight or Settings.ESPBox or Settings.ESPName or Settings.ESPHealth or Settings.ESPSkeleton or Settings.ESPTracers or Settings.ESPHeadDot)
-        Settings.ESPHighlight = newState; Settings.ESPBox = newState; Settings.ESPName = newState; Settings.ESPHealth = newState; Settings.ESPSkeleton = newState; Settings.ESPTracers = newState; Settings.ESPHeadDot = newState
+        if not espToggledOn then
+            espPreviousStates.Highlight = Settings.ESPHighlight
+            espPreviousStates.Box = Settings.ESPBox
+            espPreviousStates.Name = Settings.ESPName
+            espPreviousStates.Health = Settings.ESPHealth
+            espPreviousStates.Skeleton = Settings.ESPSkeleton
+            espPreviousStates.Tracers = Settings.ESPTracers
+            espPreviousStates.HeadDot = Settings.ESPHeadDot
+
+            Settings.ESPHighlight = true
+            Settings.ESPBox = true
+            Settings.ESPName = true
+            Settings.ESPHealth = true
+            Settings.ESPSkeleton = true
+            Settings.ESPTracers = true
+            Settings.ESPHeadDot = true
+            espToggledOn = true
+        else
+            Settings.ESPHighlight = espPreviousStates.Highlight
+            Settings.ESPBox = espPreviousStates.Box
+            Settings.ESPName = espPreviousStates.Name
+            Settings.ESPHealth = espPreviousStates.Health
+            Settings.ESPSkeleton = espPreviousStates.Skeleton
+            Settings.ESPTracers = espPreviousStates.Tracers
+            Settings.ESPHeadDot = espPreviousStates.HeadDot
+            espToggledOn = false
+        end
         updateUIStates()
     elseif isInputMatching(input, Settings.KeyFly) then
         Settings.FlyActive = not Settings.FlyActive; updateUIStates()
@@ -1242,6 +1368,40 @@ local function getClosestTarget()
     return bestTarget
 end
 
+-- Checks if the mouse cursor is directly over a valid player character part
+local function isCursorOverPlayer()
+    local mouseLoc = UserInputService:GetMouseLocation()
+    local ray = Camera:ViewportPointToRay(mouseLoc.X, mouseLoc.Y)
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+    local excludeList = {Player.Character, Camera}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= Player and p.Character and (not Settings.TeamCheck or not isTeammate(p)) then
+            table.insert(excludeList, p.Character)
+        end
+    end
+    rayParams.FilterDescendantsInstances = excludeList
+    
+    -- Cast a ray from mouse cursor into the world
+    local raycastResult = workspace:Raycast(ray.Origin, ray.Direction * 1000, rayParams)
+    if raycastResult and raycastResult.Instance then
+        local hitPart = raycastResult.Instance
+        local hitModel = hitPart:FindFirstAncestorOfClass("Model")
+        if hitModel then
+            local targetPlayer = Players:GetPlayerFromCharacter(hitModel)
+            if targetPlayer and targetPlayer ~= Player then
+                if not Settings.TeamCheck or not isTeammate(targetPlayer) then
+                    local hum = hitModel:FindFirstChildOfClass("Humanoid")
+                    if hum and hum.Health > 0 then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
 table.insert(connections, RunService.RenderStepped:Connect(function(deltaTime)
     fovCircle.Visible = Settings.ShowFOV and (Settings.FOVSize > 0)
     if Settings.ShowFOV and Settings.FOVSize > 0 then
@@ -1267,7 +1427,7 @@ table.insert(connections, RunService.RenderStepped:Connect(function(deltaTime)
         if Settings.TriggerbotEnabled then
             local character = target.Parent
             local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Health > 0 then
+            if humanoid and humanoid.Health > 0 and isCursorOverPlayer() then
                 local currentTool = Player.Character and Player.Character:FindFirstChildOfClass("Tool")
                 if isWeaponAutomatic(currentTool) then
                     if not UIState.isShooting then
@@ -1276,12 +1436,12 @@ table.insert(connections, RunService.RenderStepped:Connect(function(deltaTime)
                     end
                 else
                     local currentTime = tick()
-                    if currentTime - UIState.lastTriggerShot >= Settings.SemiDelay then
+                    if currentTime - UIState.lastTriggerShot >= Settings.TriggerbotDelay then
                         UIState.lastTriggerShot = currentTime
                         task.spawn(function()
                             pcall(function()
                                 VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-                                task.wait(0.03)
+                                task.wait(0.05)
                                 VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
                             end)
                         end)

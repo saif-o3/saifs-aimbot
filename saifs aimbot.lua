@@ -1,3 +1,4 @@
+-- language: Lua, file: saifs_aimbot_patched.lua, target: Roblox executor
 local Settings = {
     AimbotEnabled = false,
     AimbotMode = "Toggle",
@@ -12,8 +13,8 @@ local Settings = {
     ShowFOV = false,
     FOVOrigin = "Center",
     TargetPart = "Head",
-    FOVColor = Color3.fromRGB(255, 255, 255),
-    FOVColorName = "White",
+    FOVColor = Color3.fromRGB(255, 105, 180),
+    FOVColorName = "Pink",
 
     ESPHighlight = false,
     ESPHeadDot = false,
@@ -23,8 +24,8 @@ local Settings = {
     ESPSkeleton = false,
     ESPTracers = false,
     TeamCheckESP = false,
-    ESPColor = Color3.fromRGB(255, 255, 255),
-    ESPColorName = "White",
+    ESPColor = Color3.fromRGB(255, 105, 180),
+    ESPColorName = "Pink",
 
     FlyActive = false,
     FlySpeed = 50,
@@ -36,6 +37,7 @@ local Settings = {
 
     TeleportOffset = "In Front",
     SelectedTeleportTarget = nil,
+    _SelectedTeleportTargetName = nil,
 
     ShowKeybindsHud = false,
     CustomFont = Enum.Font.FredokaOne,
@@ -44,7 +46,7 @@ local Settings = {
     KeyAimbot = Enum.KeyCode.V,
     KeyFly = Enum.KeyCode.X,
     KeyToggleMenu = Enum.KeyCode.LeftAlt,
-    KeyClickTeleport = nil,
+    KeyClickTeleport = Enum.KeyCode.T,
     KeyUnload = Enum.KeyCode.U,
 
     KeyESPHighlight = nil,
@@ -67,55 +69,126 @@ local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 
 -- ============================================================
--- 2. SAVE / LOAD SYSTEM
+-- SAVE / LOAD SYSTEM
+-- Layer 1: getgenv() cache — survives re-execute within the session
+-- Layer 2: writefile — survives if the executor sandboxes it stably
 -- ============================================================
 local SAVE_FILE = "SaifsAimbot_Settings.json"
+local _lastFingerprint = nil
+local _ioAvailable = (writefile ~= nil) and (readfile ~= nil) and (isfile ~= nil)
+local GENV_KEY = "_SaifsAimbot_Cache"
 
-local function saveSettings()
-    if not writefile then return end
-    local toSave = {}
+local function snapshotSettings()
+    local out = {}
     for k, v in pairs(Settings) do
         if typeof(v) == "EnumItem" then
-            toSave[k] = {_enum = true, enumType = v.EnumType.Name, name = v.Name}
+            out[k] = {_enum = true, enumType = v.EnumType.Name, name = v.Name}
         elseif typeof(v) == "Color3" then
-            toSave[k] = {_color = true, r = v.R, g = v.G, b = v.B}
+            out[k] = {_color = true, r = v.R, g = v.G, b = v.B}
         elseif typeof(v) == "Instance" then
             if v:IsA("Player") then
-                toSave[k] = {_player = true, name = v.Name}
+                out[k] = {_player = true, name = v.Name}
             end
-        else
-            toSave[k] = v
+        elseif k == "_SelectedTeleportTargetName" then
+            if v then out[k] = {_str = true, value = v} end
+        elseif type(v) ~= "table" and type(v) ~= "function" then
+            out[k] = v
         end
     end
-    pcall(function()
-        writefile(SAVE_FILE, HttpService:JSONEncode(toSave))
-    end)
+    return out
+end
+
+local function fingerprint(tbl)
+    local keys = {}
+    for k in pairs(tbl) do table.insert(keys, k) end
+    table.sort(keys)
+    local parts = {}
+    for _, k in ipairs(keys) do
+        local v = tbl[k]
+        if type(v) == "table" then
+            local sub = {}
+            for sk in pairs(v) do table.insert(sub, tostring(sk) .. "=" .. tostring(v[sk])) end
+            table.sort(sub)
+            table.insert(parts, k .. "{" .. table.concat(sub, ",") .. "}")
+        else
+            table.insert(parts, k .. "=" .. tostring(v))
+        end
+    end
+    return table.concat(parts, "|")
+end
+
+local function applyLoadedTable(data)
+    if type(data) ~= "table" then return 0 end
+    local restored = 0
+    for k, v in pairs(data) do
+        if k == "_SelectedTeleportTargetName" then
+            if type(v) == "table" and v._str then
+                Settings._SelectedTeleportTargetName = v.value
+                restored = restored + 1
+            end
+        elseif k == "SelectedTeleportTarget" then
+            -- resolved via name after loop
+        elseif Settings[k] ~= nil or k:match("^Key") then
+            if type(v) == "table" and v._enum then
+                local et = Enum[v.enumType]
+                if et and et[v.name] then Settings[k] = et[v.name]; restored = restored + 1 end
+            elseif type(v) == "table" and v._color then
+                Settings[k] = Color3.new(v.r, v.g, v.b); restored = restored + 1
+            elseif type(v) == "table" and v._player then
+                local plr = Players:FindFirstChild(v.name)
+                if plr then Settings[k] = plr; restored = restored + 1
+                else Settings._SelectedTeleportTargetName = v.name end
+            elseif type(v) ~= "table" then
+                Settings[k] = v; restored = restored + 1
+            end
+        end
+    end
+    if Settings._SelectedTeleportTargetName then
+        local plr = Players:FindFirstChild(Settings._SelectedTeleportTargetName)
+        if plr then Settings.SelectedTeleportTarget = plr end
+    end
+    return restored
+end
+
+local function saveSettings(force)
+    local snap = snapshotSettings()
+    local fp = fingerprint(snap)
+    if not force and fp == _lastFingerprint then return true end
+    _lastFingerprint = fp
+
+    -- layer 1: genv cache (always works, same session)
+    if getgenv then
+        pcall(function() getgenv()[GENV_KEY] = snap end)
+    end
+
+    -- layer 2: writefile (may or may not persist across sessions)
+    if _ioAvailable then
+        local ok, encoded = pcall(function() return HttpService:JSONEncode(snap) end)
+        if ok then
+            pcall(function() writefile(SAVE_FILE, encoded) end)
+        end
+    end
+
+    return true
 end
 
 local function loadSettings()
-    if not isfile or not readfile then return end
-    if not isfile(SAVE_FILE) then return end
-    local ok, data = pcall(function()
-        return HttpService:JSONDecode(readfile(SAVE_FILE))
-    end)
-    if not ok or type(data) ~= "table" then return end
-    for k, v in pairs(data) do
-        if Settings[k] ~= nil or k:match("^Key") then
-            if type(v) == "table" and v._enum then
-                local enumType = Enum[v.enumType]
-                if enumType then
-                    Settings[k] = enumType[v.name]
-                end
-            elseif type(v) == "table" and v._color then
-                Settings[k] = Color3.new(v.r, v.g, v.b)
-            elseif type(v) == "table" and v._player then
-                local plr = Players:FindFirstChild(v.name)
-                if plr then Settings[k] = plr end
-            elseif k ~= "SelectedTeleportTarget" then
-                Settings[k] = v
-            end
-        end
+    -- layer 1: genv cache first (highest priority, same session)
+    if getgenv and getgenv()[GENV_KEY] then
+        local restored = applyLoadedTable(getgenv()[GENV_KEY])
+        print(string.format("[Saif] loaded %d setting(s) from session cache", restored))
+        return
     end
+
+    -- layer 2: file
+    if not _ioAvailable then return end
+    if not isfile(SAVE_FILE) then return end
+    local ok, raw = pcall(function() return readfile(SAVE_FILE) end)
+    if not ok or not raw or #raw < 2 then return end
+    local ok2, data = pcall(function() return HttpService:JSONDecode(raw) end)
+    if not ok2 or type(data) ~= "table" then return end
+    local restored = applyLoadedTable(data)
+    print(string.format("[Saif] loaded %d setting(s) from disk", restored))
 end
 
 loadSettings()
@@ -136,6 +209,7 @@ local isAimbotHeld = false
 local allDropdowns = {}
 local lastSaveTime = 0
 local SAVE_INTERVAL = 2
+local menuVisible = true
 
 local Themes = {
     ["Bubblegum Pink"] = {Accent = Color3.fromRGB(255, 105, 180), Bg = Color3.fromRGB(35, 18, 28), Card = Color3.fromRGB(48, 24, 38), Text = Color3.fromRGB(255, 220, 240), SubText = Color3.fromRGB(200, 140, 175), Off = Color3.fromRGB(90, 50, 75), TabActive = Color3.fromRGB(65, 32, 52), TabInactive = Color3.fromRGB(38, 19, 30), WidgetBg = Color3.fromRGB(60, 30, 48)},
@@ -279,6 +353,9 @@ local function getKeyName(inputObj)
     return tostring(inputObj)
 end
 
+-- ============================================================
+-- KEYBINDS HUD — Click TP above unload line, shade matched
+-- ============================================================
 local KeybindsHud = Instance.new("Frame")
 KeybindsHud.Size = UDim2.new(0, 190, 0, 100)
 KeybindsHud.Position = UDim2.new(0, 15, 1, -115)
@@ -318,9 +395,22 @@ local HudRowAimbot, HudStatusAimbot = createHudStatusRow(8, "Aimbot [" .. getKey
 local HudRowFly, HudStatusFly = createHudStatusRow(30, "Fly [" .. getKeyName(Settings.KeyFly) .. "]")
 local HudRowMenu, HudStatusMenu = createHudStatusRow(52, "Menu [" .. getKeyName(Settings.KeyToggleMenu) .. "]")
 
+-- Click TP row — SubText shade to match the other rows
+local HudClickTp = Instance.new("TextLabel", KeybindsHud)
+HudClickTp.Size = UDim2.new(1, -20, 0, 18)
+HudClickTp.Position = UDim2.new(0, 10, 0, 74)
+HudClickTp.BackgroundTransparency = 1
+HudClickTp.Font = Settings.CustomFont
+HudClickTp.Text = "Click TP [" .. getKeyName(Settings.KeyClickTeleport) .. "]"
+HudClickTp.TextColor3 = Theme.SubText
+HudClickTp.TextSize = 11
+HudClickTp.TextXAlignment = Enum.TextXAlignment.Left
+HudClickTp.ZIndex = 51
+
+-- Unload line
 local HudStatusUnload = Instance.new("TextLabel", KeybindsHud)
 HudStatusUnload.Size = UDim2.new(1, -20, 0, 18)
-HudStatusUnload.Position = UDim2.new(0, 10, 0, 74)
+HudStatusUnload.Position = UDim2.new(0, 10, 0, 92)
 HudStatusUnload.BackgroundTransparency = 1
 HudStatusUnload.Font = Settings.CustomFont
 HudStatusUnload.Text = "Press " .. getKeyName(Settings.KeyUnload) .. " to Unload"
@@ -328,6 +418,48 @@ HudStatusUnload.TextColor3 = Theme.SubText
 HudStatusUnload.TextSize = 10
 HudStatusUnload.TextXAlignment = Enum.TextXAlignment.Center
 HudStatusUnload.ZIndex = 51
+
+local HUD_BASE_Y = 112
+local extraHudRows = {}
+local extraHudDefs = {
+    {"Triggerbot",    "KeyTriggerbot"},
+    {"ESP Highlight", "KeyESPHighlight"},
+    {"ESP Head Dot",  "KeyESPHeadDot"},
+    {"ESP Box",       "KeyESPBox"},
+    {"ESP Name",      "KeyESPName"},
+    {"ESP Health",    "KeyESPHealth"},
+    {"ESP Skeleton",  "KeyESPSkeleton"},
+    {"ESP Tracers",   "KeyESPTracers"},
+}
+
+local function rebuildExtraHudRows()
+    for _, info in pairs(extraHudRows) do
+        if info and info.obj and info.obj.Parent then info.obj:Destroy() end
+    end
+    extraHudRows = {}
+    local y = HUD_BASE_Y
+    for _, def in ipairs(extraHudDefs) do
+        local label, keyName = def[1], def[2]
+        if Settings[keyName] ~= nil then
+            local row = Instance.new("TextLabel", KeybindsHud)
+            row.Size = UDim2.new(1, -20, 0, 16)
+            row.Position = UDim2.new(0, 10, 0, y)
+            row.BackgroundTransparency = 1
+            row.Font = Settings.CustomFont
+            row.Text = label .. " [" .. getKeyName(Settings[keyName]) .. "]"
+            row.TextColor3 = Theme.SubText
+            row.TextSize = 11
+            row.TextXAlignment = Enum.TextXAlignment.Left
+            row.ZIndex = 51
+            extraHudRows[keyName] = {label = label, obj = row}
+            y = y + 16
+        end
+    end
+    KeybindsHud.Size = UDim2.new(0, 190, 0, math.max(HUD_BASE_Y + 6, y + 6))
+    KeybindsHud.Position = UDim2.new(0, 15, 1, -(KeybindsHud.Size.Y.Offset + 15))
+end
+
+rebuildExtraHudRows()
 
 local currentTab = 1
 local tabButtons = {}
@@ -498,6 +630,7 @@ local function createDropdown(parentCard, defaultText, options, onSelect)
             valBtn.Text = tostring(opt) .. " ▾"
             listFrame.Visible = false
             if activeDropdownList == listFrame then activeDropdownList = nil end
+            pcall(function() saveSettings(true) end)
         end)
     end
 
@@ -517,6 +650,15 @@ local function createDropdown(parentCard, defaultText, options, onSelect)
     table.insert(allDropdowns, {btn = valBtn, list = listFrame, sep = sep, closeBtn = closeBtn})
     return valBtn, listFrame
 end
+
+local fovCircle = Drawing.new("Circle")
+fovCircle.Thickness = 2
+fovCircle.NumSides = 60
+fovCircle.Radius = Settings.FOVSize
+fovCircle.Color = Settings.FOVColor
+fovCircle.Transparency = 0.7
+fovCircle.Visible = false
+fovCircle.Filled = false
 
 local function buildAllTabs()
     local function buildTab1()
@@ -566,6 +708,7 @@ local function buildAllTabs()
             TweenService:Create(TriggerDelayFill, TweenInfo.new(0.3), {Size = UDim2.new(Settings.TriggerbotDelay / 1.0, 0, 1, 0)}):Play()
             TriggerDelayText.Text = string.format("%.2fs", Settings.TriggerbotDelay)
             updateSliderTextColors()
+            pcall(function() saveSettings(true) end)
         end)
 
         local CardTarget = createCard(1, 4)
@@ -622,6 +765,7 @@ local function buildAllTabs()
             TweenService:Create(TargetingSliderFill, TweenInfo.new(0.3), {Size = UDim2.new(0.50, 0, 1, 0)}):Play()
             TargetingSliderText.Text = "50%"
             updateSliderTextColors()
+            pcall(function() saveSettings(true) end)
         end)
 
         local CardTrackingSmooth = createCard(1, 9)
@@ -644,6 +788,7 @@ local function buildAllTabs()
             TweenService:Create(TrackingSliderFill, TweenInfo.new(0.3), {Size = UDim2.new(0.50, 0, 1, 0)}):Play()
             TrackingSliderText.Text = "50%"
             updateSliderTextColors()
+            pcall(function() saveSettings(true) end)
         end)
 
         local CardFOV = createCard(1, 10)
@@ -663,9 +808,9 @@ local function buildAllTabs()
         LblFOVColor.Font = Settings.CustomFont; LblFOVColor.Text = "FOV Color"; LblFOVColor.TextColor3 = Theme.Text; LblFOVColor.TextSize = 14; LblFOVColor.TextXAlignment = Enum.TextXAlignment.Left; LblFOVColor.ZIndex = 4
         local fovColors = {"White", "Pink", "Red", "Cyan", "Green", "Yellow", "Purple"}
         local fovMap = {["White"] = Color3.fromRGB(255, 255, 255), ["Pink"] = Color3.fromRGB(255, 105, 180), ["Red"] = Color3.fromRGB(255, 50, 50), ["Cyan"] = Color3.fromRGB(0, 229, 255), ["Green"] = Color3.fromRGB(46, 204, 113), ["Yellow"] = Color3.fromRGB(255, 230, 0), ["Purple"] = Color3.fromRGB(180, 50, 255)}
-        ValFOVColor = createDropdown(CardFOVColor, Settings.FOVColorName or "White", fovColors, function(s)
+        ValFOVColor = createDropdown(CardFOVColor, Settings.FOVColorName or "Pink", fovColors, function(s)
             Settings.FOVColorName = s
-            Settings.FOVColor = fovMap[s] or Color3.fromRGB(255, 255, 255)
+            Settings.FOVColor = fovMap[s] or Color3.fromRGB(255, 105, 180)
             fovCircle.Color = Settings.FOVColor
         end)
 
@@ -696,6 +841,7 @@ local function buildAllTabs()
             FOVSliderText.Text = "100"
             fovCircle.Radius = Settings.FOVSize
             updateSliderTextColors()
+            pcall(function() saveSettings(true) end)
         end)
     end
 
@@ -706,9 +852,9 @@ local function buildAllTabs()
         LblESPColor.Font = Settings.CustomFont; LblESPColor.Text = "ESP Color"; LblESPColor.TextColor3 = Theme.Text; LblESPColor.TextSize = 14; LblESPColor.TextXAlignment = Enum.TextXAlignment.Left; LblESPColor.ZIndex = 4
         local espColors = {"White", "Pink", "Red", "Cyan", "Green", "Yellow", "Purple"}
         local espMap = {["White"] = Color3.fromRGB(255, 255, 255), ["Pink"] = Color3.fromRGB(255, 105, 180), ["Red"] = Color3.fromRGB(255, 50, 50), ["Cyan"] = Color3.fromRGB(0, 229, 255), ["Green"] = Color3.fromRGB(46, 204, 113), ["Yellow"] = Color3.fromRGB(255, 230, 0), ["Purple"] = Color3.fromRGB(180, 50, 255)}
-        ValESPColor = createDropdown(CardESPColor, Settings.ESPColorName or "White", espColors, function(s)
+        ValESPColor = createDropdown(CardESPColor, Settings.ESPColorName or "Pink", espColors, function(s)
             Settings.ESPColorName = s
-            Settings.ESPColor = espMap[s] or Color3.fromRGB(255, 255, 255)
+            Settings.ESPColor = espMap[s] or Color3.fromRGB(255, 105, 180)
         end)
 
         local function createESPFeatureCard(labelText, settingName, settingKeyName, order)
@@ -729,7 +875,9 @@ local function buildAllTabs()
 
             resetKeyBtn.MouseButton1Click:Connect(function()
                 Settings[settingKeyName] = nil
+                rebuildExtraHudRows()
                 updateUIStates()
+                pcall(function() saveSettings(true) end)
             end)
 
             keyVal.MouseButton1Click:Connect(function()
@@ -807,9 +955,12 @@ local function buildAllTabs()
             if #names == 0 then table.insert(names, "None") end
             return names
         end
-        ValTpPlayer = createDropdown(CardTpPlayer, "None", getPlayerNames(), function(s)
+        ValTpPlayer = createDropdown(CardTpPlayer, Settings._SelectedTeleportTargetName or "None", getPlayerNames(), function(s)
             local target = Players:FindFirstChild(s)
-            if target then Settings.SelectedTeleportTarget = target end
+            if target then
+                Settings.SelectedTeleportTarget = target
+                Settings._SelectedTeleportTargetName = target.Name
+            end
         end)
 
         local CardTpExecute = createCard(3, 4)
@@ -888,6 +1039,7 @@ local function buildAllTabs()
             TweenService:Create(FlySpeedFill, TweenInfo.new(0.3), {Size = UDim2.new((Settings.FlySpeed - 10) / 290, 0, 1, 0)}):Play()
             FlySpeedText.Text = "50"
             updateSliderTextColors()
+            pcall(function() saveSettings(true) end)
         end)
 
         local CardWalkSpeed = createCard(4, 4)
@@ -910,6 +1062,7 @@ local function buildAllTabs()
             TweenService:Create(WalkSpeedFill, TweenInfo.new(0.3), {Size = UDim2.new((Settings.WalkSpeed - 16) / 184, 0, 1, 0)}):Play()
             WalkSpeedText.Text = "16"
             updateSliderTextColors()
+            pcall(function() saveSettings(true) end)
         end)
 
         local CardJumpPower = createCard(4, 5)
@@ -932,6 +1085,7 @@ local function buildAllTabs()
             TweenService:Create(JumpPowerFill, TweenInfo.new(0.3), {Size = UDim2.new((Settings.JumpPower - 50) / 200, 0, 1, 0)}):Play()
             JumpPowerText.Text = "50"
             updateSliderTextColors()
+            pcall(function() saveSettings(true) end)
         end)
 
         local CardInfJump = createCard(4, 6)
@@ -969,7 +1123,12 @@ local function buildAllTabs()
             local resetBtn = Instance.new("TextButton", card)
             resetBtn.Size = UDim2.new(0, 22, 0, 22); resetBtn.Position = UDim2.new(1, -88, 0.5, -11); resetBtn.BackgroundColor3 = Theme.WidgetBg; resetBtn.Font = Settings.CustomFont; resetBtn.Text = "↺"; resetBtn.TextColor3 = Theme.Accent; resetBtn.TextSize = 13; resetBtn.ZIndex = 4
             Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 4)
-            resetBtn.MouseButton1Click:Connect(function() Settings[settingKey] = nil; updateUIStates() end)
+            resetBtn.MouseButton1Click:Connect(function()
+                Settings[settingKey] = nil
+                rebuildExtraHudRows()
+                updateUIStates()
+                pcall(function() saveSettings(true) end)
+            end)
             val.MouseButton1Click:Connect(function() listeningForKey = settingKey; ignoreNextClick = true; updateUIStates() end)
             return card, val
         end
@@ -1005,8 +1164,87 @@ end
 buildAllTabs()
 
 -- ============================================================
--- 5. LOGIC & RENDER LOOP
+-- LOGIC & RENDER LOOP
 -- ============================================================
+local espDrawings = {}
+
+local function createDrawingESP(player)
+    if espDrawings[player] then return end
+    local d = {
+        BoxOutline = Drawing.new("Square"), Box = Drawing.new("Square"), Name = Drawing.new("Text"),
+        HealthBarBackground = Drawing.new("Line"), HealthBar = Drawing.new("Line"), Tracer = Drawing.new("Line"),
+        HeadDot = Drawing.new("Circle"), Skeleton = {}, Highlight = Instance.new("Highlight")
+    }
+    d.BoxOutline.Thickness = 3; d.BoxOutline.Filled = false; d.BoxOutline.Color = Color3.fromRGB(0, 0, 0); d.BoxOutline.Visible = false
+    d.Box.Thickness = 1.5; d.Box.Filled = false; d.Box.Visible = false
+    d.Name.Size = 13; d.Name.Center = true; d.Name.Outline = true; d.Name.Visible = false
+    d.HealthBarBackground.Thickness = 4; d.HealthBarBackground.Color = Color3.fromRGB(0, 0, 0); d.HealthBarBackground.Visible = false
+    d.HealthBar.Thickness = 2; d.HealthBar.Visible = false
+    d.Tracer.Thickness = 1.5; d.Tracer.Visible = false
+    d.HeadDot.Thickness = 1.5; d.HeadDot.Radius = 4; d.HeadDot.Filled = true; d.HeadDot.Visible = false
+    d.Highlight.FillTransparency = 0.5; d.Highlight.OutlineTransparency = 0; d.Highlight.Enabled = false
+    d.Highlight.Parent = CoreGui
+    for i = 1, 16 do local line = Drawing.new("Line"); line.Thickness = 1.5; line.Visible = false; table.insert(d.Skeleton, line) end
+    espDrawings[player] = d
+end
+
+local function removeDrawingESP(player)
+    if espDrawings[player] then
+        for name, obj in pairs(espDrawings[player]) do
+            if type(obj) == "table" then
+                for _, line in ipairs(obj) do pcall(function() line:Remove() end) end
+            elseif name == "Highlight" then
+                pcall(function() obj.Adornee = nil end)
+                pcall(function() obj:Destroy() end)
+            else
+                pcall(function() obj:Remove() end)
+            end
+        end
+        espDrawings[player] = nil
+    end
+end
+
+for _, p in pairs(Players:GetPlayers()) do if p ~= Player then createDrawingESP(p) end end
+Players.PlayerAdded:Connect(createDrawingESP)
+
+local function clearGhostESP(player)
+    if espDrawings[player] then removeDrawingESP(player) end
+    for _, obj in ipairs(CoreGui:GetDescendants()) do
+        if obj:IsA("Highlight") then
+            local ad = obj.Adornee
+            if ad == nil then
+                pcall(function() obj:Destroy() end)
+            elseif ad:IsDescendantOf(workspace) then
+                local model = ad:FindFirstAncestorOfClass("Model")
+                local owner = model and Players:GetPlayerFromCharacter(model)
+                if owner == player then
+                    pcall(function() obj:Destroy() end)
+                end
+            end
+        end
+    end
+end
+
+Players.PlayerRemoving:Connect(function(player)
+    clearGhostESP(player)
+    task.delay(0.25, function() clearGhostESP(player) end)
+    task.delay(1.0, function() clearGhostESP(player) end)
+end)
+
+local function hookCharacterRemoving(player)
+    player.CharacterRemoving:Connect(function()
+        task.delay(0.1, function() clearGhostESP(player) end)
+    end)
+end
+for _, p in ipairs(Players:GetPlayers()) do hookCharacterRemoving(p) end
+Players.PlayerAdded:Connect(hookCharacterRemoving)
+
+for _, obj in ipairs(CoreGui:GetDescendants()) do
+    if obj:IsA("Highlight") and obj.Adornee == nil then
+        pcall(function() obj:Destroy() end)
+    end
+end
+
 local function setupUIAndTheme()
     applyThemeColors = function()
         MainFrame.BackgroundColor3 = Theme.Bg
@@ -1044,12 +1282,21 @@ local function setupUIAndTheme()
             end
         end
         KeybindsHud.BackgroundColor3 = Theme.Card
-        for _, child in ipairs(KeybindsHud:GetChildren()) do
-            if child:IsA("TextLabel") and child ~= HudStatusAimbot and child ~= HudStatusFly and child ~= HudStatusMenu then
-                child.TextColor3 = Theme.SubText
-            end
+        if HudRowAimbot then HudRowAimbot.TextColor3 = Theme.SubText end
+        if HudRowFly then HudRowFly.TextColor3 = Theme.SubText end
+        if HudRowMenu then HudRowMenu.TextColor3 = Theme.SubText end
+        if HudClickTp then HudClickTp.TextColor3 = Theme.SubText end
+        if HudStatusUnload then HudStatusUnload.TextColor3 = Theme.SubText end
+        if HudStatusAimbot then
+            local isAimbotActive = (Settings.AimbotMode == "Hold") and isAimbotHeld or Settings.AimbotEnabled
+            HudStatusAimbot.TextColor3 = isAimbotActive and Theme.Accent or Color3.fromRGB(239, 68, 68)
         end
-        HudStatusMenu.TextColor3 = menuVisible and Theme.Accent or Color3.fromRGB(239, 68, 68)
+        if HudStatusFly then
+            HudStatusFly.TextColor3 = Settings.FlyActive and Theme.Accent or Color3.fromRGB(239, 68, 68)
+        end
+        if HudStatusMenu then
+            HudStatusMenu.TextColor3 = menuVisible and Theme.Accent or Color3.fromRGB(239, 68, 68)
+        end
         for _, dd in ipairs(allDropdowns) do
             dd.btn.BackgroundColor3 = Theme.WidgetBg
             dd.btn.TextColor3 = Theme.Accent
@@ -1063,51 +1310,6 @@ local function setupUIAndTheme()
         updateSliderTextColors()
     end
 
-    local fovCircle = Drawing.new("Circle")
-    fovCircle.Thickness = 2
-    fovCircle.NumSides = 60
-    fovCircle.Radius = Settings.FOVSize
-    fovCircle.Color = Settings.FOVColor
-    fovCircle.Transparency = 0.7
-    fovCircle.Visible = false
-    fovCircle.Filled = false
-
-    local espDrawings = {}
-    local function createDrawingESP(player)
-        if espDrawings[player] then return end
-        local d = {
-            BoxOutline = Drawing.new("Square"), Box = Drawing.new("Square"), Name = Drawing.new("Text"),
-            HealthBarBackground = Drawing.new("Line"), HealthBar = Drawing.new("Line"), Tracer = Drawing.new("Line"),
-            HeadDot = Drawing.new("Circle"), Skeleton = {}, Highlight = Instance.new("Highlight")
-        }
-        d.BoxOutline.Thickness = 3; d.BoxOutline.Filled = false; d.BoxOutline.Color = Color3.fromRGB(0, 0, 0); d.BoxOutline.Visible = false
-        d.Box.Thickness = 1.5; d.Box.Filled = false; d.Box.Visible = false
-        d.Name.Size = 13; d.Name.Center = true; d.Name.Outline = true; d.Name.Visible = false
-        d.HealthBarBackground.Thickness = 4; d.HealthBarBackground.Color = Color3.fromRGB(0, 0, 0); d.HealthBarBackground.Visible = false
-        d.HealthBar.Thickness = 2; d.HealthBar.Visible = false
-        d.Tracer.Thickness = 1.5; d.Tracer.Visible = false
-        d.HeadDot.Thickness = 1.5; d.HeadDot.Radius = 4; d.HeadDot.Filled = true; d.HeadDot.Visible = false
-        d.Highlight.FillTransparency = 0.5; d.Highlight.OutlineTransparency = 0; d.Highlight.Enabled = false
-        for i = 1, 16 do local line = Drawing.new("Line"); line.Thickness = 1.5; line.Visible = false; table.insert(d.Skeleton, line) end
-        espDrawings[player] = d
-    end
-
-    local function removeDrawingESP(player)
-        if espDrawings[player] then
-            for name, obj in pairs(espDrawings[player]) do
-                if type(obj) == "table" then for _, line in ipairs(obj) do pcall(function() line:Remove() end) end
-                elseif name == "Highlight" then pcall(function() obj:Destroy() end)
-                else pcall(function() obj:Remove() end) end
-            end
-            espDrawings[player] = nil
-        end
-    end
-
-    for _, p in pairs(Players:GetPlayers()) do if p ~= Player then createDrawingESP(p) end end
-    Players.PlayerAdded:Connect(createDrawingESP)
-    Players.PlayerRemoving:Connect(removeDrawingESP)
-
-    local menuVisible = true
     updateSliderTextColors = function()
         local function contrastColor(fillFraction) if fillFraction >= 0.5 then return Color3.fromRGB(20, 20, 20) else return Theme.Text end end
         TargetingSliderText.TextColor3 = contrastColor(Settings.TargetingSmoothness)
@@ -1146,6 +1348,7 @@ local function setupUIAndTheme()
     end
 
     local function setToggleStateAnimated(track, knob, state)
+        if not track or not knob then return end
         TweenService:Create(track, TweenInfo.new(0.2), {BackgroundColor3 = state and Theme.Accent or Theme.Off}):Play()
         TweenService:Create(knob, TweenInfo.new(0.2), {Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)}):Play()
     end
@@ -1187,6 +1390,7 @@ local function setupUIAndTheme()
         HudRowAimbot.Text = "Aimbot [" .. getKeyName(Settings.KeyAimbot) .. "]"
         HudRowFly.Text = "Fly [" .. getKeyName(Settings.KeyFly) .. "]"
         HudRowMenu.Text = "Menu [" .. getKeyName(Settings.KeyToggleMenu) .. "]"
+        HudClickTp.Text = "Click TP [" .. getKeyName(Settings.KeyClickTeleport) .. "]"
         HudStatusUnload.Text = "Press " .. getKeyName(Settings.KeyUnload) .. " to Unload"
 
         local isAimbotActive = (Settings.AimbotMode == "Hold") and isAimbotHeld or Settings.AimbotEnabled
@@ -1196,21 +1400,32 @@ local function setupUIAndTheme()
         HudStatusFly.TextColor3 = Settings.FlyActive and Theme.Accent or Color3.fromRGB(239, 68, 68)
         HudStatusMenu.Text = menuVisible and "ON" or "OFF"
         HudStatusMenu.TextColor3 = menuVisible and Theme.Accent or Color3.fromRGB(239, 68, 68)
+
+        for keyName, info in pairs(extraHudRows) do
+            local b = Settings[keyName]
+            if b and info.obj then
+                info.obj.Text = info.label .. " [" .. getKeyName(b) .. "]"
+            end
+        end
     end
 
     local function unloadHub()
-        saveSettings()
+        pcall(function() saveSettings(true) end)
         closeActiveDropdown()
         if isShooting then pcall(function() VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0) end); isShooting = false end
-        for _, conn in ipairs(connections) do conn:Disconnect() end
+        for _, conn in ipairs(connections) do pcall(function() conn:Disconnect() end) end
         pcall(function() fovCircle:Remove() end)
-        for p, _ in pairs(espDrawings) do removeDrawingESP(p) end
-        ScreenGui:Destroy()
+        for p, _ in pairs(espDrawings) do pcall(function() removeDrawingESP(p) end) end
+        for _, obj in ipairs(CoreGui:GetDescendants()) do
+            if obj:IsA("Highlight") then pcall(function() obj:Destroy() end) end
+        end
+        pcall(function() ScreenGui:Destroy() end)
         UserInputService.MouseIconEnabled = true
         local char = Player.Character
         local humanoid = char and char:FindFirstChildOfClass("Humanoid")
         if humanoid then humanoid.PlatformStand = false; pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.GettingUp) end) end
     end
+    _G._saifUnloadHub = unloadHub
 
     local draggingMain = false; local dragStartMain, startPosMain
     Title.InputBegan:Connect(function(input)
@@ -1295,6 +1510,7 @@ local function setupUIAndTheme()
                 closeActiveDropdown()
                 Settings[settingName] = not Settings[settingName]
                 updateUIStates()
+                pcall(function() saveSettings(true) end)
             end
         end))
     end
@@ -1320,6 +1536,7 @@ local function setupUIAndTheme()
     table.insert(connections, UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             draggingTargetingSlider = false; draggingTrackingSlider = false; draggingTriggerDelaySlider = false; draggingFOVSlider = false; draggingFlySpeedSlider = false; draggingWalkSpeedSlider = false; draggingJumpPowerSlider = false; resizingMain = false
+            pcall(function() saveSettings(true) end)
         end
     end))
 
@@ -1343,33 +1560,36 @@ local function setupUIAndTheme()
         if result and myHRP then myHRP.CFrame = CFrame.new(result.Position + Vector3.new(0, 3, 0)) end
     end
 
-    table.insert(connections, UserInputService.InputBegan:Connect(function(input)
-        if isInputMatching(input, Settings.KeyUnload) then unloadHub() end
+    table.insert(connections, UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if isInputMatching(input, Settings.KeyUnload) then
+            if _G._saifUnloadHub then _G._saifUnloadHub() end
+        end
     end))
 
     table.insert(connections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if listeningForKey then
             if ignoreNextClick then ignoreNextClick = false; return end
-            if input.UserInputType == Enum.UserInputType.Keyboard then Settings[listeningForKey] = input.KeyCode; listeningForKey = nil; updateUIStates()
-            elseif input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then Settings[listeningForKey] = input.UserInputType; listeningForKey = nil; updateUIStates() end
+            if input.UserInputType == Enum.UserInputType.Keyboard then Settings[listeningForKey] = input.KeyCode; listeningForKey = nil; rebuildExtraHudRows(); updateUIStates(); pcall(function() saveSettings(true) end)
+            elseif input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then Settings[listeningForKey] = input.UserInputType; listeningForKey = nil; rebuildExtraHudRows(); updateUIStates(); pcall(function() saveSettings(true) end) end
             return
         end
         if isInputMatching(input, Settings.KeyUnload) then return end
         if gameProcessed then return end
 
         if isInputMatching(input, Settings.KeyToggleMenu) then menuVisible = not menuVisible; setVisibility(menuVisible); updateUIStates()
-        elseif isInputMatching(input, Settings.KeyFly) then Settings.FlyActive = not Settings.FlyActive; updateUIStates()
+        elseif isInputMatching(input, Settings.KeyFly) then Settings.FlyActive = not Settings.FlyActive; updateUIStates(); pcall(function() saveSettings(true) end)
         elseif isInputMatching(input, Settings.KeyClickTeleport) then executeClickTeleport()
         elseif isInputMatching(input, Settings.KeyAimbot) then
             if Settings.AimbotMode == "Toggle" then Settings.AimbotEnabled = not Settings.AimbotEnabled else isAimbotHeld = true end
             updateUIStates()
-        elseif isInputMatching(input, Settings.KeyESPHighlight) then Settings.ESPHighlight = not Settings.ESPHighlight; updateUIStates()
-        elseif isInputMatching(input, Settings.KeyESPHeadDot) then Settings.ESPHeadDot = not Settings.ESPHeadDot; updateUIStates()
-        elseif isInputMatching(input, Settings.KeyESPBox) then Settings.ESPBox = not Settings.ESPBox; updateUIStates()
-        elseif isInputMatching(input, Settings.KeyESPName) then Settings.ESPName = not Settings.ESPName; updateUIStates()
-        elseif isInputMatching(input, Settings.KeyESPHealth) then Settings.ESPHealth = not Settings.ESPHealth; updateUIStates()
-        elseif isInputMatching(input, Settings.KeyESPSkeleton) then Settings.ESPSkeleton = not Settings.ESPSkeleton; updateUIStates()
-        elseif isInputMatching(input, Settings.KeyESPTracers) then Settings.ESPTracers = not Settings.ESPTracers; updateUIStates()
+        elseif isInputMatching(input, Settings.KeyESPHighlight) then Settings.ESPHighlight = not Settings.ESPHighlight; updateUIStates(); pcall(function() saveSettings(true) end)
+        elseif isInputMatching(input, Settings.KeyESPHeadDot) then Settings.ESPHeadDot = not Settings.ESPHeadDot; updateUIStates(); pcall(function() saveSettings(true) end)
+        elseif isInputMatching(input, Settings.KeyESPBox) then Settings.ESPBox = not Settings.ESPBox; updateUIStates(); pcall(function() saveSettings(true) end)
+        elseif isInputMatching(input, Settings.KeyESPName) then Settings.ESPName = not Settings.ESPName; updateUIStates(); pcall(function() saveSettings(true) end)
+        elseif isInputMatching(input, Settings.KeyESPHealth) then Settings.ESPHealth = not Settings.ESPHealth; updateUIStates(); pcall(function() saveSettings(true) end)
+        elseif isInputMatching(input, Settings.KeyESPSkeleton) then Settings.ESPSkeleton = not Settings.ESPSkeleton; updateUIStates(); pcall(function() saveSettings(true) end)
+        elseif isInputMatching(input, Settings.KeyESPTracers) then Settings.ESPTracers = not Settings.ESPTracers; updateUIStates(); pcall(function() saveSettings(true) end)
         elseif input.KeyCode == Enum.KeyCode.Space and Settings.InfJump then
             local hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
             if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
@@ -1478,13 +1698,14 @@ local function setupUIAndTheme()
                 local hum = char:FindFirstChildOfClass("Humanoid")
                 local active = hrp and head and hum and hum.Health > 0
                 if Settings.TeamCheckESP and isTeammate(v) then
-                    d.Highlight.Enabled = false; d.Box.Visible = false; d.BoxOutline.Visible = false; d.Name.Visible = false; d.HealthBar.Visible = false; d.HealthBarBackground.Visible = false; d.Tracer.Visible = false; d.HeadDot.Visible = false
+                    d.Highlight.Enabled = false; d.Highlight.Adornee = nil
+                    d.Box.Visible = false; d.BoxOutline.Visible = false; d.Name.Visible = false; d.HealthBar.Visible = false; d.HealthBarBackground.Visible = false; d.Tracer.Visible = false; d.HeadDot.Visible = false
                     for _, l in ipairs(d.Skeleton) do l.Visible = false end
                 else
                     local tc = Settings.ESPColor
                     d.Highlight.Enabled = Settings.ESPHighlight and active
                     if active then
-                        d.Highlight.Parent = char; d.Highlight.FillColor = tc; d.Highlight.OutlineColor = tc
+                        d.Highlight.Adornee = char; d.Highlight.FillColor = tc; d.Highlight.OutlineColor = tc
                         local cf, size = char:GetBoundingBox()
                         local top, topOn = Camera:WorldToViewportPoint((cf + Vector3.new(0, size.Y / 2, 0)).Position)
                         local bot, botOn = Camera:WorldToViewportPoint((cf - Vector3.new(0, size.Y / 2, 0)).Position)
@@ -1530,6 +1751,7 @@ local function setupUIAndTheme()
                             for _, l in ipairs(d.Skeleton) do l.Visible = false end
                         end
                     else
+                        d.Highlight.Adornee = nil
                         d.Box.Visible = false; d.BoxOutline.Visible = false; d.Name.Visible = false; d.HealthBar.Visible = false; d.HealthBarBackground.Visible = false; d.Tracer.Visible = false; d.HeadDot.Visible = false
                         for _, l in ipairs(d.Skeleton) do l.Visible = false end
                     end
@@ -1571,7 +1793,7 @@ local function setupUIAndTheme()
             end
         end
 
-        if tick() - lastSaveTime >= SAVE_INTERVAL then lastSaveTime = tick(); saveSettings() end
+        if tick() - lastSaveTime >= SAVE_INTERVAL then lastSaveTime = tick(); pcall(function() saveSettings(false) end) end
     end))
 
     updateUIStates()
@@ -1581,11 +1803,64 @@ local function setupUIAndTheme()
         if ValTarget then ValTarget.Text = Settings.TargetPart .. " ▾" end
         if ValAimbotMode then ValAimbotMode.Text = Settings.AimbotMode .. " ▾" end
         if ValFOVOrigin then ValFOVOrigin.Text = Settings.FOVOrigin .. " ▾" end
-        if ValFOVColor then ValFOVColor.Text = (Settings.FOVColorName or "White") .. " ▾" end
-        if ValESPColor then ValESPColor.Text = (Settings.ESPColorName or "White") .. " ▾" end
+        if ValFOVColor then ValFOVColor.Text = (Settings.FOVColorName or "Pink") .. " ▾" end
+        if ValESPColor then ValESPColor.Text = (Settings.ESPColorName or "Pink") .. " ▾" end
         if ValTpOffset then ValTpOffset.Text = Settings.TeleportOffset .. " ▾" end
         if ValTheme then ValTheme.Text = Settings.CurrentTheme .. " ▾" end
+        if ValTpPlayer then ValTpPlayer.Text = (Settings._SelectedTeleportTargetName or "None") .. " ▾" end
+    end)
+
+    game:BindToClose(function()
+        pcall(function() saveSettings(true) end)
     end)
 end
 
 setupUIAndTheme()
+
+-- ============================================================
+-- POST-BUILD: reload, apply, baseline save, diagnostic
+-- ============================================================
+task.defer(function()
+    pcall(loadSettings)
+    pcall(function() updateUIStates() end)
+    pcall(function() applyThemeColors() end)
+    pcall(function()
+        if ValTarget then ValTarget.Text = Settings.TargetPart .. " ▾" end
+        if ValAimbotMode then ValAimbotMode.Text = Settings.AimbotMode .. " ▾" end
+        if ValFOVOrigin then ValFOVOrigin.Text = Settings.FOVOrigin .. " ▾" end
+        if ValFOVColor then ValFOVColor.Text = (Settings.FOVColorName or "Pink") .. " ▾" end
+        if ValESPColor then ValESPColor.Text = (Settings.ESPColorName or "Pink") .. " ▾" end
+        if ValTpOffset then ValTpOffset.Text = Settings.TeleportOffset .. " ▾" end
+        if ValTheme then ValTheme.Text = Settings.CurrentTheme .. " ▾" end
+        if ValTpPlayer then ValTpPlayer.Text = (Settings._SelectedTeleportTargetName or "None") .. " ▾" end
+    end)
+    pcall(function() rebuildExtraHudRows() end)
+    pcall(function() saveSettings(true) end)
+
+    if _ioAvailable then
+        local testPath = SAVE_FILE .. ".test"
+        local wOk = pcall(function() writefile(testPath, "ok") end)
+        if wOk then
+            local rOk, content = pcall(function() return readfile(testPath) end)
+            print("[Saif] persistence round-trip: " .. (rOk and content == "ok" and "PASS" or "FAIL"))
+            pcall(function() delfile(testPath) end)
+        else
+            warn("[Saif] writefile present but failing — executor sandbox issue")
+        end
+        if isfile(SAVE_FILE) then
+            local ok, raw = pcall(function() return readfile(SAVE_FILE) end)
+            if ok and raw then print("[Saif] config file on disk: " .. #raw .. " bytes") end
+        else
+            print("[Saif] config file NOT on disk after save attempt")
+        end
+    else
+        warn("[Saif] writefile/readfile/isfile not exposed — persistence impossible on this executor")
+    end
+
+    print("[Saif] session-cache persistence active (getgenv) — survives re-execute same session")
+end)
+
+if Settings.CurrentTheme and Themes[Settings.CurrentTheme] then
+    Theme = Themes[Settings.CurrentTheme]
+    pcall(function() applyThemeColors() end)
+end

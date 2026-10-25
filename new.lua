@@ -13,7 +13,7 @@ local Settings = {
     FOVOrigin = "Center",
     TargetPart = "Head",
     FOVColor = Color3.fromRGB(255, 255, 255),
-    FOVColorName = "Pink",
+    FOVColorName = "White",
 
     ESPHighlight = false,
     ESPHeadDot = false,
@@ -24,7 +24,7 @@ local Settings = {
     ESPTracers = false,
     TeamCheckESP = false,
     ESPColor = Color3.fromRGB(255, 255, 255),
-    ESPColorName = "Pink",
+    ESPColorName = "White",
 
     FlyActive = false,
     FlySpeed = 50,
